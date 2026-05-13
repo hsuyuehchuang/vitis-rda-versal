@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>vitis-rda-versal 專案 High-level 講解</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg:        #fafafa;
+    --fg:        #1d1d1f;
+    --muted:    #6b7280;
+    --accent:   #0a84ff;
+    --card:     #ffffff;
+    --border:   #e5e7eb;
+    --code-bg:  #f3f4f6;
+    --quote-bg: #f1f5f9;
+    --shadow:   0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+  }
+  html.dark {
+    --bg:        #0f1115;
+    --fg:        #e5e7eb;
+    --muted:    #9ca3af;
+    --accent:   #4dabff;
+    --card:     #161a22;
+    --border:   #2a2f3a;
+    --code-bg:  #1d222b;
+    --quote-bg: #1a1f2a;
+    --shadow:   0 1px 2px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+                 "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header .title { font-weight: 600; font-size: 15px; }
+  header .spacer { flex: 1; }
+  header button {
+    background: transparent; color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 12px; cursor: pointer; font-size: 14px;
+  }
+  header button:hover { background: var(--code-bg); }
+  .layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+    gap: 32px;
+  }
+  nav.toc {
+    position: sticky; top: 72px; align-self: start;
+    max-height: calc(100vh - 96px); overflow-y: auto;
+    font-size: 14px;
+  }
+  nav.toc h3 {
+    font-size: 12px; text-transform: uppercase; color: var(--muted);
+    letter-spacing: .08em; margin: 0 0 8px;
+  }
+  nav.toc a {
+    display: block; padding: 4px 8px; border-radius: 6px;
+    color: var(--fg); border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { background: var(--code-bg); text-decoration: none; }
+  nav.toc a.active {
+    background: var(--code-bg); border-left-color: var(--accent);
+    color: var(--accent); font-weight: 500;
+  }
+  nav.toc a.sub { padding-left: 20px; color: var(--muted); font-size: 13px; }
+  main { min-width: 0; }
+  main h1 { font-size: 28px; margin: 0 0 12px; }
+  main h2 {
+    font-size: 22px; margin: 40px 0 12px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  main h3 { font-size: 18px; margin: 28px 0 8px; scroll-margin-top: 70px; }
+  main h4 { font-size: 16px; margin: 20px 0 6px; scroll-margin-top: 70px; }
+  main p, main li { color: var(--fg); }
+  main ul, main ol { padding-left: 22px; }
+  blockquote {
+    margin: 14px 0;
+    padding: 12px 16px;
+    background: var(--quote-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    color: var(--fg);
+  }
+  blockquote p { margin: 4px 0; }
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  pre code { background: transparent; padding: 0; font-size: 13px; line-height: 1.5; }
+  pre .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--card); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer;
+    opacity: 0; transition: opacity .15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn:hover { color: var(--accent); }
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+    background: var(--card); border-radius: 8px; overflow: hidden;
+    box-shadow: var(--shadow); font-size: 14px;
+  }
+  th, td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  img.board {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    display: block;
+    margin: 12px 0;
+  }
+  img.diagram {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    display: block;
+    margin: 16px 0;
+  }
+  .mermaid {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 14px 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .mermaid svg { max-width: 100%; height: auto !important; }
+  .concept-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 18px 0;
+  }
+  .dataflow-embed {
+    margin: 18px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0d1117;
+    box-shadow: var(--shadow);
+  }
+  .dataflow-embed iframe {
+    display: block;
+    width: 100%;
+    height: 680px;
+    border: 0;
+    background: #0d1117;
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; max-height: none; }
+    .dataflow-embed iframe { height: 760px; }
+  }
+  @media print {
+    header.topbar, nav.toc { display: none; }
+    .layout { grid-template-columns: 1fr; padding: 0; }
+    body { font-size: 12px; line-height: 1.5; }
+    pre, table { page-break-inside: avoid; }
+    .dataflow-embed { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="title">vitis-rda-versal 高階講解</span>
+  <span class="spacer"></span>
+  <button id="toggle-dark" title="切換深淺模式">Dark</button>
+  <button onclick="window.print()" title="列印 / 存 PDF">Print</button>
+</header>
+
+<div class="layout">
+  <nav class="toc" id="toc">
+    <h3>章節導覽</h3>
+    <a href="#summary">0. 執行摘要</a>
+    <a href="#case">1. 應用案例先導</a>
+    <a href="#architecture">2. 核心架構解析</a>
+    <a href="#hardware" class="sub">2.1 硬體層級定義</a>
+    <a href="#acap" class="sub">2.2 Versal ACAP</a>
+    <a href="#aie" class="sub">2.3 AI Engine</a>
+    <a href="#heterogeneous">3. 異質運算架構</a>
+    <a href="#dataflow" class="sub">互動式資料流程圖</a>
+    <a href="#roles" class="sub">3.1 三層各司其職</a>
+    <a href="#implementation">4. 實作拆解</a>
+    <a href="#conclusion">5. 總結</a>
+    <a href="#appendix-a">附錄 A. 硬體名詞</a>
+    <a href="#appendix-b">附錄 B. 檔案速查</a>
+    <a href="#appendix-c">附錄 C. 編譯與清理</a>
+    <a href="#appendix-d">附錄 D. 板上模組</a>
+  </nav>
+
+  <main>
+    <h1>vitis-rda-versal 專案 High-level 講解</h1>
+    <ul>
+      <li><b>時長</b>：~10 分鐘</li>
+      <li><b>報告對象</b>：對 AMD/Xilinx Versal 晶片家族無先備知識之同仁。</li>
+      <li><b>重點</b>：
+        <ol>
+          <li>AI Engine 是什麼</li>
+          <li>AIE 應用案例探討 (以 2D FFT 為例)</li>
+          <li>PS / PL / AIE 三層分工</li>
+        </ol>
+      </li>
+    </ul>
+
+    <h2 id="summary">0. 執行摘要 (Executive Summary)</h2>
+    <ul>
+      <li><b>文件目的</b>：本文件旨在快速（約 10 分鐘）建立團隊對 <code>vitis-rda-versal</code> 專案的 High-level 認知。重點將解構 AI Engine (AIE) 之運作原理，並釐清處理系統 (PS)、可程式化邏輯 (PL) 與 AIE 間的軟硬體協作機制。</li>
+      <li><b>內容範疇</b>：本文件之探討核心為 <b>AI Engine (AIE)</b> 的運算模型與實務應用。系統中的 PS 與 PL 模組將僅針對其與 AIE 的介面銜接（如資料流控制、記憶體搬運）進行輔助性探討，不展開底層暫存器或韌體細節。</li>
+    </ul>
+
+    <h2 id="case">1. 應用案例先導：為何需要 AI Engine？</h2>
+    <p>AI Engine 具備極強的平行運算能力，非常適合處理高吞吐量的數位訊號處理 (DSP) 與矩陣運算。為了具體展示 AIE 的效能，本專案選擇了一個經典的應用情境：</p>
+    <blockquote>
+      <p><b>案例情境：在 Xilinx Versal VCK190 上使用 AI Engine 加速 1024 × 1024 二維 FFT</b></p>
+      <p>此範例為完整的端到端 (end-to-end) 架構，不僅展示 AIE 的運算力，更示範如何搭配 PL (FPGA) 端的 HLS 模組搬運資料，以及 PS (ARM CPU) 端的 host 程式進行系統排程。</p>
+    </blockquote>
+    <p><b>本章重點</b>：</p>
+    <blockquote>
+      <p>AI Engine 專職加速複雜的數學與訊號處理。在此 2D FFT 案例中，AI Engine 專心負責數學運算、FPGA 負責高效搬移資料、ARM CPU 則在背後指揮大局。</p>
+    </blockquote>
+
+    <h2 id="architecture">2. 核心架構解析：Versal ACAP 與 AI Engine</h2>
+    <h3 id="hardware">2.1 硬體層級定義</h3>
+    <p>為利於快速釐清硬體定義，我們直接從「物理大小（由外到內包覆）」來拆解這幾個名詞：</p>
+    <img class="board" src="./Xilinx-Versal-VCK190.png" alt="Xilinx Versal VCK190 Evaluation Board" style="max-width:500px" />
+    <table>
+      <thead><tr><th>實體層級</th><th>本專案硬體名詞</th><th>這是什麼？</th></tr></thead>
+      <tbody>
+        <tr><td><b>開發板</b></td><td><b>VCK190</b></td><td>實體的評估板 (Board)，包含電源、風扇與周邊介面，如同電腦主機板。</td></tr>
+        <tr><td><b>SoC 晶片</b></td><td><b>XCVC1902</b></td><td>焊在板子上的那顆 SoC 晶片。<br><i>註：<b>Versal ACAP</b> 是這顆晶片的「家族系列統稱」，如同 Intel Core i7 是一個系列名稱</i></td></tr>
+        <tr><td><b>晶片內部區塊</b></td><td><b>AI Engine (AIE)</b></td><td>晶片內部的三大子系統之一（另有 PS 與 PL）。是由 400 個微型運算單元 (Tiles) 組成的 2D 計算陣列總稱。</td></tr>
+      </tbody>
+    </table>
+    <p><b>Summary</b>：</p>
+    <blockquote>
+      <p>本專案基於 <b>VCK190 評估板</b>進行開發，其核心為 <b>Versal 架構之 XCVC1902 SoC 晶片</b>。本報告探討之主體 <b>AI Engine</b>，即為內建於該 SoC 之中、由 400 個 Tiles 所構成的高效能平行運算子系統。</p>
+    </blockquote>
+
+    <h3 id="acap">2.2 什麼是 Versal ACAP？</h3>
+    <h4>ACAP (Adaptive Compute Acceleration Platform，自適應運算加速平台)</h4>
+    <ul>
+      <li>ACAP 本質上為一顆 SoC，但因其內部同時整合了 CPU、FPGA 與 AI 陣列三種截然不同的運算資源，AMD/Xilinx 為了突顯其異質運算特性，特別創造了「ACAP」這個名詞來與傳統 SoC 做出區隔。</li>
+      <li>在 AMD/Xilinx 的定義裡，一顆 Versal ACAP 裡面，主要包含三大區塊：</li>
+    </ul>
+    <table>
+      <thead><tr><th>晶片內部區塊</th><th>縮寫</th><th>內容</th><th>適合做的事</th></tr></thead>
+      <tbody>
+        <tr><td><b>Processing System</b></td><td><b>PS</b></td><td>ARM Cortex-A72 (Linux runs here)</td><td>控制流程、I/O、調度</td></tr>
+        <tr><td><b>Programmable Logic</b></td><td><b>PL</b></td><td>傳統 FPGA fabric</td><td>自定義 datapath、I/O 介面、bit-level operation</td></tr>
+        <tr><td><b>AI Engine</b></td><td><b>AIE</b></td><td>VLIW SIMD vector processor array</td><td>高吞吐、規律性、可向量化的運算</td></tr>
+      </tbody>
+    </table>
+    <img class="concept-svg" src="./versal-acap.svg" alt="Versal ACAP PS PL AIE diagram" />
+
+    <h3 id="aie">2.3 深入理解 AI Engine</h3>
+    <p><b>1. AIE 到底是什麼？</b></p>
+    <ul>
+      <li>是一個由數百個微型計算單元 (Tiles) 構成的 2D 陣列（在 VCK190 晶片上有 400 個）。</li>
+      <li>本質上更像是一群「極度擅長平行數學運算的微型 DSP，透過晶片內網路互相串接起來的流水線工廠」。</li>
+    </ul>
+    <img class="diagram" src="./aie-tiles.png" alt="AIE tile array mapping and routing example" style="max-width:700px" />
+    <blockquote>
+      <p>這張圖是 AIE compiler / analyzer 看到的 tile array 視角：背景格子代表整片 AIE tile 陣列；彩色區塊與連線代表本設計實際 mapping 到的 kernel tile 與 stream route。換句話說，不是所有 tiles 都被用到，只有被 graph placement / routing 標出的區域參與這個 FFT dataflow。</p>
+    </blockquote>
+    <p><b>2. 適合 vs 不適合做什麼？</b></p>
+    <table>
+      <thead><tr><th>適合</th><th>不適合</th></tr></thead>
+      <tbody>
+        <tr><td>FFT / FIR / 矩陣乘法</td><td>高度控制流程的運算</td></tr>
+        <tr><td>CNN 推理 (卷積、ReLU)</td><td>不規則記憶體存取</td></tr>
+        <tr><td>波束成形 (Beamforming)、雷達訊號處理</td><td>需要作業系統、系統呼叫</td></tr>
+        <tr><td>任何串流 + 向量化的 DSP</td><td>單一且不連續的快速運算</td></tr>
+      </tbody>
+    </table>
+    <p><b>3. AIE 的程式模型</b></p>
+    <p>主要分為兩層概念：</p>
+    <ul>
+      <li><b>Kernel (C++)</b>：在單一 tile 上執行的計算函式（例如：做一次 1024-pt FFT）。</li>
+      <li><b>Graph (ADF API)</b>：將多個 kernel 用資料流 (stream) 連接起來的 Dataflow 拓樸圖。</li>
+    </ul>
+    <blockquote>
+      <p><i>註：開發完成後，AIE Compiler 會自動將 kernel 映射到實體的 tile、規劃硬體繞線、產出 ELF 執行檔，並處理與 PL/PS 的介面對接。</i></p>
+    </blockquote>
+
+    <h2 id="heterogeneous">3. 異質運算架構：PS、PL 與 AIE 的完美分工</h2>
+    <h3 id="dataflow">互動式資料流程圖</h3>
+    <noscript>
+      <img class="diagram" src="./dataflow.svg" alt="2D FFT dataflow static diagram" style="max-width:900px" />
+    </noscript>
+    <section class="dataflow-embed" aria-label="互動式 2D FFT 資料流圖">
+      <iframe
+        src="./dataflow.html"
+        title="互動式 2D FFT 資料流圖"
+        loading="lazy"></iframe>
+    </section>
+
+    <blockquote>
+      <p>PS 不在資料路徑上，只負責透過 XRT 下命令；資料流以 DDR 為中心進出 PL ↔ AIE。</p>
+    </blockquote>
+
+    <h3 id="roles">3.1 三層各司其職：以 2D FFT 專案為例</h3>
+    <p>在這個 2D FFT 的案例中，清楚展示了 PS、PL 與 AIE 是如何完美分工的。以下為三層的具體角色與對應的原始碼檔案：</p>
+    <table>
+      <thead><tr><th>層級</th><th>角色定位</th><th>主要原始碼檔案</th><th>本案例具體任務與運作流程</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>PS</b><br>(ARM Cortex-A72 CPU core)</td>
+          <td><b>指揮中心</b></td>
+          <td><a href="../sw/host.cpp">sw/host.cpp</a><br><a href="../sw/aie_control_xrt.cpp">sw/aie_control_xrt.cpp</a></td>
+          <td><b>1.</b> 啟動 Linux 並執行 host 程式。<br><b>2.</b> 從 SD 卡讀入 8 MB 的測試輸入陣列至 DDR。<br><b>3.</b> 透過 XRT API 載入 <code>.xclbin</code>。<br><b>4.</b> 啟動 AIE Graph，並在迴圈中觸發 PL 的搬運任務。<br><b>5.</b> 等待所有 Kernel 算完，將結果存回 SD 卡。</td>
+        </tr>
+        <tr>
+          <td><b>PL</b><br>(FPGA)</td>
+          <td><b>搬運專員</b></td>
+          <td><a href="../hls/mm2s.cpp">hls/mm2s.cpp</a><br><a href="../hls/s2mm.cpp">hls/s2mm.cpp</a><br><a href="../hls/fft_strided_mm2s.cpp">hls/fft_strided...</a></td>
+          <td><b>1. mm2s</b>：從 DDR 抓取 Column 資料，串流給 AIE。<br><b>2. s2mm</b>：接住 AIE 算完的 Column 結果，寫回 DDR。<br><b>3. strided_mm2s</b>：用跳躍式位址「邊讀邊轉置」，串流給 AIE 做 Row FFT。</td>
+        </tr>
+        <tr>
+          <td><b>AIE</b><br>(運算陣列)</td>
+          <td><b>計算引擎</b></td>
+          <td><a href="../aie/graph.cpp">aie/graph.cpp</a><br><a href="../aie/col_fft_twd_mul_graph.h">aie/col_fft...</a><br><a href="../aie/row_fft_graph.h">aie/row_fft...</a></td>
+          <td><b>1. Col 階段</b>：收串流資料 → 跑 1024-pt FFT → 乘 Twiddle factor → 丟出串流。<br><b>2. Row 階段</b>：收轉置串流 → 跑 1024-pt FFT → 透過 GMIO 直接寫回 DDR。<br><i>註：Col 與 Row 佔用不同 Tile，可管線化重疊執行</i></td>
+        </tr>
+        <tr>
+          <td><b>黏合層</b><br>(System)</td>
+          <td><b>總接線圖</b></td>
+          <td><a href="../system.cfg">system.cfg</a></td>
+          <td>負責宣告「PL 的哪根管子要接到 AIE 的哪個洞」，是異質系統間的連線設定檔。</td>
+        </tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><b>一句話速記</b>：<b>PS 下命令、PL 搬資料、AIE 算數學</b>。資料以 DDR 為中心：<code>DDR → PL → AIE → PL → DDR → PL → AIE → DDR</code>，最後 PS 再把 DDR 結果寫回 SD card。</p>
+    </blockquote>
+
+    <h2 id="implementation">4. 實作拆解：1024x1024 2D FFT 資料流</h2>
+    <p>本案例使用 Cooley-Tukey 演算法，將 2D FFT 拆解為「行處理 (Column)」與「列處理 (Row)」兩個獨立的 AIE Graph。以下為核心實作細節的快速歸納：</p>
+    <table>
+      <thead><tr><th>實作面向</th><th>關鍵概念與設定</th></tr></thead>
+      <tbody>
+        <tr><td><b>第一階段：Column FFT</b><br><code>col_fft_twd_mul_graph.h</code></td><td>收取 PLIO 串流資料，執行 <b>1024-pt FFT</b>，隨後乘上 <b>Twiddle Factor</b>。計算完畢後經由 PL <code>s2mm</code> 寫回 DDR。</td></tr>
+        <tr><td><b>第二階段：Row FFT</b><br><code>row_fft_graph.h</code></td><td>讀取轉置後的串流資料，再次執行 <b>1024-pt FFT</b>。計算完畢後，直接透過 <b>GMIO</b> 寫回 DDR。</td></tr>
+        <tr><td><b>硬體資源配置</b><br>Tile Placement</td><td>AIE 為實體的物理陣列，Kernel 擺放位置會直接影響傳輸頻寬。<br>• Col 階段配置於 Tile <code>(24, 0)</code> – <code>(27, 2)</code><br>• Row 階段配置於 Tile <code>(24, 3)</code> – <code>(27, 4)</code></td></tr>
+        <tr><td><b>編譯期優化參數</b><br><code>sub_fft_par.h</code></td><td>開發者可透過參數微調效能：<br>• <code>N_BATCH_FFT</code>：一次處理多筆資料。<br>• <code>N_PARAL</code>：平行展開多條 Pipeline。</td></tr>
+        <tr><td><b>流量橋接設計</b><br>Widget Kernels</td><td>當開出多條 Pipeline (<code>N_PARAL &gt; 1</code>) 時，需使用橋接 Kernel (<code>distributer</code> / <code>collector</code>) 處理資料流的分流與合流。</td></tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><b>PLIO vs GMIO 介面比較</b>：兩者皆為 AIE 的資料傳輸標準。</p>
+      <ul>
+        <li><b>PLIO</b>：AIE 與 PL (FPGA) 之間的串流介面，低延遲、適合連續資料傳輸。</li>
+        <li><b>GMIO</b>：AIE 直接讀寫 DDR 記憶體的介面，頻寬大、適合巨量 Block 存取。</li>
+      </ul>
+    </blockquote>
+
+    <h2 id="conclusion">5. 總結與技術心得</h2>
+    <blockquote>
+      <p><b>本專案為「以 AIE 加速 DSP 演算法」的標準範例</b>。掌握此專案即可理解：</p>
+      <ol>
+        <li>Versal 三層 (PS / PL / AIE) 怎麼分工</li>
+        <li>AIE kernel 跟 graph 的寫法</li>
+        <li>PLIO vs GMIO 兩種介面什麼時候用哪個</li>
+        <li>Tile placement、parallelism、batching 這些優化旋鈕怎麼轉</li>
+      </ol>
+    </blockquote>
+
+    <h2 id="appendix-a">附錄 A：AI Engine 硬體名詞解釋</h2>
+    <p><b>AIE 的本質為一個 array of VLIW SIMD vector processors</b>。以下為相關專有名詞的白話對照表：</p>
+    <table>
+      <thead><tr><th>名詞</th><th>是什麼</th><th>比喻 / 備註</th></tr></thead>
+      <tbody>
+        <tr><td><b>CPU</b></td><td>Central Processing Unit，通用處理器</td><td>像家裡的管家，什麼都做但一次一件</td></tr>
+        <tr><td><b>PS</b></td><td>Processing System，Versal 內的處理系統區塊。</td><td>跑 Linux、執行 host 程式、負責流程控制 / I/O / 調度。</td></tr>
+        <tr><td><b>ARM</b></td><td>CPU 架構與 IP 設計公司。</td><td>ARM 設計 CPU core，AMD/Xilinx 把 ARM core 整合進 Versal PS。</td></tr>
+        <tr><td><b>ARM Cortex-A72 CPU core</b></td><td>ARM 公司設計的 64-bit 應用級 CPU 核心。Versal <b>PS</b> 運行 Linux 就是用這顆。</td><td>它不是 PS 的名稱，而是 PS 裡面的 CPU core。</td></tr>
+        <tr><td><b>SIMD</b></td><td>Single Instruction, Multiple Data — 一條指令同時對多筆資料運算</td><td>「一聲令下，全班同時做伏地挺身」</td></tr>
+        <tr><td><b>VLIW</b></td><td>Very Long Instruction Word — 一條指令封裝多個運算 slot 同時下發，靠 compiler 安排併行</td><td>「一張菜單同時點好幾道菜」</td></tr>
+        <tr><td><b>DSP</b></td><td>Digital Signal Processor / Processing — 數位訊號處理</td><td>專門處理數學運算與訊號轉換的技術或硬體</td></tr>
+        <tr><td><b>FFT</b></td><td>Fast Fourier Transform — 快速傅立葉轉換</td><td>頻譜分析的核心演算法，本專案的應用主體</td></tr>
+        <tr><td><b>MAC</b></td><td>Multiply-Accumulate — 乘加運算</td><td>DSP 效能的核心衡量指標，AIE 單一週期可執行大量 MAC</td></tr>
+        <tr><td><b>XRT</b></td><td>Xilinx Runtime，運行在 PS/Linux 上的軟體 API / runtime。</td><td>讓 <code>host.cpp</code> 可以載入 <code>.xclbin</code>、建立 DDR buffer、啟動 PL kernel / AIE graph、等待硬體完成。</td></tr>
+        <tr><td><b>HLS</b></td><td>High-Level Synthesis — 高階合成技術</td><td>將 C++ 程式碼直接轉譯為 FPGA 硬體電路的技術</td></tr>
+        <tr><td><b>Vector processor</b></td><td>把 VLIW + SIMD 結合成的小型處理器，一個 cycle 做大量平行 MAC</td><td>一顆超專業的 DSP</td></tr>
+        <tr><td><b>Vector processor array</b></td><td>上述 vector processor 複製幾百顆排成 2D grid，相鄰可直接串流通訊</td><td>一整個工廠流水線</td></tr>
+        <tr><td><b>AIE tile</b></td><td>array 裡的「一格」= 一顆 vector processor + 周邊（往下展開）</td><td>工廠裡的一個工位</td></tr>
+        <tr><td>├ <b>Vector unit</b></td><td>tile 內做 SIMD 平行運算的部分，1 cycle 可做多個 MAC</td><td>工位的雙手，一次抓很多顆</td></tr>
+        <tr><td>├ <b>Scalar unit</b></td><td>tile 內處理 control flow（if / loop / 分支）的部分</td><td>工位的腦袋，做判斷</td></tr>
+        <tr><td>├ <b>Local memory</b></td><td>tile 內 32 KB SRAM，極低延遲（單 cycle 存取）</td><td>工位旁邊的小櫃子</td></tr>
+        <tr><td>├ <b>DMA engine</b></td><td>tile 內負責搬資料到鄰居 tile / PL / DDR 的硬體單元</td><td>工位的機械搬運手臂</td></tr>
+        <tr><td>└ <b>Cascade interface</b></td><td>直接把運算結果送隔壁 tile，不經 memory</td><td>工位之間的傳送帶</td></tr>
+        <tr><td><b>mm2s</b></td><td>Memory-Mapped → Stream</td><td>PL 專用詞：指從 DDR (AXI-MM) 讀資料，轉成 AXI-Stream 餵給 AIE</td></tr>
+        <tr><td><b>s2mm</b></td><td>Stream → Memory-Mapped</td><td>PL 專用詞：從 AIE 收取 AXI-Stream，轉成 AXI-MM 寫回 DDR</td></tr>
+        <tr><td><b>AXI-MM</b></td><td>AXI Memory-Mapped</td><td>有記憶體位址的隨機存取介面（主要用來接 DDR）</td></tr>
+        <tr><td><b>AXI-Stream</b></td><td>AXI Stream</td><td>無位址的純資料流介面（主要用來接 AIE 或 PL 內部流水線）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="appendix-b">附錄 B：專案檔案與資料夾速查</h2>
+    <h3>B.1 關鍵檔案路徑</h3>
+    <table>
+      <thead><tr><th>角色</th><th>路徑</th></tr></thead>
+      <tbody>
+        <tr><td>專案總入口</td><td><a href="../Makefile">Makefile</a>, <a href="../system.cfg">system.cfg</a></td></tr>
+        <tr><td>AIE 頂層 graph 實例化</td><td><a href="../aie/graph.cpp">aie/graph.cpp</a></td></tr>
+        <tr><td>AIE column graph 定義</td><td><a href="../aie/col_fft_twd_mul_graph.h">aie/col_fft_twd_mul_graph.h</a></td></tr>
+        <tr><td>AIE row graph 定義</td><td><a href="../aie/row_fft_graph.h">aie/row_fft_graph.h</a></td></tr>
+        <tr><td>AIE 編譯期參數</td><td><a href="../aie/sub_fft_par.h">aie/sub_fft_par.h</a></td></tr>
+        <tr><td>AIE tile placement</td><td><a href="../aie_constraints.json">aie_constraints.json</a></td></tr>
+        <tr><td>PL data movers</td><td><a href="../hls/mm2s.cpp">hls/mm2s.cpp</a>, <a href="../hls/s2mm.cpp">hls/s2mm.cpp</a>, <a href="../hls/fft_strided_mm2s.cpp">hls/fft_strided_mm2s.cpp</a></td></tr>
+        <tr><td>PS host 應用</td><td><a href="../sw/host.cpp">sw/host.cpp</a>, <a href="../sw/aie_control_xrt.cpp">sw/aie_control_xrt.cpp</a></td></tr>
+        <tr><td>結果驗證腳本</td><td><a href="../verify/verify_output.py">verify/verify_output.py</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3>B.2 資料夾結構</h3>
+    <table>
+      <thead><tr><th>資料夾</th><th>縮寫 / 全名</th><th>用途</th><th>編譯自動產生？</th></tr></thead>
+      <tbody>
+        <tr><td><a href="../aie/">aie/</a></td><td>AI Engine</td><td>AIE graph + kernel C++ 原始碼</td><td>否（手寫）</td></tr>
+        <tr><td><a href="../hls/">hls/</a></td><td>High-Level Synthesis</td><td>PL kernel C++ 原始碼，被 <code>v++</code> 編成 <code>.xo</code></td><td>否（手寫）</td></tr>
+        <tr><td><a href="../sw/">sw/</a></td><td>software</td><td>PS 端 host 應用程式（C++）</td><td>否（手寫）</td></tr>
+        <tr><td><a href="../verify/">verify/</a></td><td>—</td><td>Python 驗證腳本 + 測試資料 <code>.npy</code></td><td>否（大 <code>.npy</code> 被 gitignore）</td></tr>
+        <tr><td><a href="../doc/">doc/</a></td><td>documentation</td><td>你的筆記 + 圖（這份檔案就在這）</td><td>否（手寫）</td></tr>
+        <tr><td><a href="../imp_result/">imp_result/</a></td><td>implementation result</td><td>跑完 build 後的 utilization / timing 報告</td><td>是（但通常想留著比較）</td></tr>
+        <tr><td><a href="../emu_qemu_scripts/">emu_qemu_scripts/</a></td><td>—</td><td>QEMU 硬體模擬啟動腳本</td><td>是</td></tr>
+        <tr><td><a href="../Work/">Work/</a></td><td>—</td><td><b>AIE compiler</b> 編譯中間檔（ELF、memmap、routing）</td><td>是</td></tr>
+        <tr><td><code>_x/</code></td><td>—</td><td><b>v++</b> 編譯中間檔（HLS、link 階段暫存）</td><td>是</td></tr>
+        <tr><td><code>_ide/</code></td><td>—</td><td>Vitis IDE 自動產生的 workspace 設定</td><td>是</td></tr>
+        <tr><td><a href="../cfg/">cfg/</a></td><td>configuration</td><td>工具產生的 metadata</td><td>是</td></tr>
+        <tr><td><a href="../sim/">sim/</a></td><td>simulation</td><td>aiesimulator / x86 simulator 輸出</td><td>是</td></tr>
+        <tr><td><a href="../sd_card/">sd_card/</a></td><td>—</td><td>打包 SD card image 前的暫存區</td><td>是</td></tr>
+        <tr><td><code>.Xil/</code></td><td>—</td><td>Xilinx 工具的 lock / temp 檔</td><td>是</td></tr>
+        <tr><td><code>.ipcache/</code></td><td>—</td><td>Vivado IP cache</td><td>是</td></tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><b>快速辨認原則</b>：開頭有 <code>.</code> 或 <code>_</code>、或名字是 <code>Work</code> / <code>cfg</code> / <code>sim</code> 的，幾乎都是工具產生的暫存目錄，<b>刪掉重 build 就會回來</b>。</p>
+    </blockquote>
+
+    <h3>B.3 根目錄產出檔 (Generated Files)</h3>
+    <p>按用途分組。<b>「可清理」標示為 "Y" 者，代表 <code>make</code> 或 <code>git clean</code> 會重新產生，可放心刪除</b>。</p>
+    <h4>A. 燒板 / 跑模擬必備的最終產物</h4>
+    <table>
+      <thead><tr><th>檔名</th><th>全名 / 意義</th><th>是什麼</th><th>可清理</th></tr></thead>
+      <tbody>
+        <tr><td><code>a.xclbin</code></td><td>Xilinx Compute Library Binary</td><td><b>最終要燒到板子上的二進位</b>，包含 PL bitstream + AIE binary + metadata</td><td>Y (<code>make</code> 會重產)</td></tr>
+        <tr><td><code>BOOT.BIN</code></td><td>Boot Image</td><td>Versal 開機 image，把 firmware + bitstream + Linux + rootfs 通通包進來</td><td>Y</td></tr>
+        <tr><td><code>host.exe</code></td><td>—</td><td>PS 端 ARM 執行檔，板子 boot 後執行的就是它</td><td>Y</td></tr>
+        <tr><td><code>sd_card.img</code></td><td>—</td><td><b>4 GB</b> 完整 SD card 映像檔，QEMU 模擬時掛載；空間吃很大</td><td>Y (最該定期刪)</td></tr>
+      </tbody>
+    </table>
+
+    <h4>B. Build 中間產物（流程中經過的階段檔）</h4>
+    <table>
+      <thead><tr><th>檔名</th><th>全名 / 意義</th><th>是什麼</th><th>可清理</th></tr></thead>
+      <tbody>
+        <tr><td><code>aie_base_graph_hw.xsa</code> / <code>_hw_emu.xsa</code></td><td>eXtensible Shell Archive</td><td><code>v++ --link</code> 把 AIE+PL 拼起來的產物，丟給 <code>--package</code> 變成 BOOT.BIN</td><td>Y</td></tr>
+        <tr><td><code>libadf.a</code></td><td>Adaptive Data Flow library</td><td>AIE graph 編譯後的靜態 lib，給 <code>v++ --link</code> 用</td><td>Y</td></tr>
+        <tr><td><code>plm.bin</code></td><td>Platform Loader &amp; Manager</td><td>Versal 開機第一級 firmware</td><td>Y</td></tr>
+        <tr><td><code>pmc_cdo.bin</code></td><td>Configuration Data Object</td><td>Versal 開機時配置硬體用的指令序列</td><td>Y</td></tr>
+        <tr><td><code>aie.merged.cdo.bin</code></td><td>AIE Configuration Data Object</td><td>配置 AIE array 用的指令序列</td><td>Y</td></tr>
+        <tr><td><code>BOOT_bh.bin</code> / <code>boot_image.bif</code></td><td>Boot Header / Format</td><td>描述 BOOT.BIN 格式與內容的 spec</td><td>Y</td></tr>
+      </tbody>
+    </table>
+
+    <h4>C. 報告 / Log（可選保留）</h4>
+    <table>
+      <thead><tr><th>檔名</th><th>是什麼</th><th>可清理</th></tr></thead>
+      <tbody>
+        <tr><td><code>*.log</code></td><td>各種工具 build / 模擬 log</td><td>Y</td></tr>
+        <tr><td><code>*.link_summary</code> / <code>*.package_summary</code></td><td>v++ 各階段摘要報告</td><td>Y</td></tr>
+        <tr><td><code>Map_Report.csv</code> / <code>sol.db</code></td><td>HLS / scheduling 報告</td><td>Y</td></tr>
+        <tr><td><code>launch_hw_emu.sh</code> / <code>qemu_args.txt</code> 等</td><td>QEMU 模擬啟動腳本與參數</td><td>Y</td></tr>
+        <tr><td><code>xilinx_vck190_base_202420_1.wcfg</code></td><td>Vivado / Vitis 模擬器波形設定</td><td>Y</td></tr>
+      </tbody>
+    </table>
+
+    <h4>D. 千萬不要刪（手寫 source）</h4>
+    <table>
+      <thead><tr><th>檔名</th><th>是什麼</th></tr></thead>
+      <tbody>
+        <tr><td><a href="../Makefile">Makefile</a></td><td>主控 build 流程</td></tr>
+        <tr><td><a href="../system.cfg">system.cfg</a></td><td>PL ↔ AIE streaming 連線設定</td></tr>
+        <tr><td><a href="../aie_constraints.json">aie_constraints.json</a></td><td>AIE tile placement</td></tr>
+        <tr><td><a href="../README.md">README.md</a></td><td>原專案說明</td></tr>
+        <tr><td><code>.gitignore</code></td><td>git 忽略清單</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="appendix-c">附錄 C：編譯流程與清理指南</h2>
+    <h3>C.1 編譯流程 (Makefile Targets)</h3>
+    <p>主控 <a href="../Makefile">Makefile</a> 的主要 targets：</p>
+    <table>
+      <thead><tr><th>指令</th><th>在做什麼</th><th>產物</th></tr></thead>
+      <tbody>
+        <tr><td><code>make aie</code></td><td>用 AIE compiler 編 graph</td><td><code>libadf.a</code>、<code>Work/</code></td></tr>
+        <tr><td><code>make hls</code></td><td>把 HLS kernel 編成 <code>.xo</code></td><td><code>mm2s.xo</code>、<code>s2mm.xo</code> 等</td></tr>
+        <tr><td><code>make xsa</code></td><td><code>v++ --link</code> 把 AIE + PL 拼起來</td><td><code>.xsa</code> (hardware design archive)</td></tr>
+        <tr><td><code>make host</code></td><td>aarch64 cross-compile</td><td><code>host.exe</code> (ARM 執行檔)</td></tr>
+        <tr><td><code>make package</code></td><td>打包成 SD card image</td><td><code>BOOT.BIN</code> + rootfs + xclbin</td></tr>
+        <tr><td><code>make aiesim</code></td><td>跑 AIE 模擬器</td><td>驗證 graph 行為</td></tr>
+        <tr><td>Hardware emulation</td><td>QEMU + AIE 模擬</td><td>驗證整個系統行為</td></tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><b>執行流程</b>：把 SD card 插到 VCK190 板子 → boot Linux → 跑 <code>./host.exe</code> → 結果寫回 DDR → 拷回主機用 <code>verify_output.py</code> 驗證。</p>
+    </blockquote>
+
+    <h3>C.2 一鍵清理</h3>
+    <table>
+      <thead><tr><th>想清什麼</th><th>指令</th></tr></thead>
+      <tbody>
+        <tr><td>清掉 Makefile 預設認得的中間檔</td><td><code>make clean</code></td></tr>
+        <tr><td>把所有 gitignore 列出的東西全清掉（最徹底）</td><td><code>git clean -fdX</code></td></tr>
+        <tr><td>只查看會被清掉哪些東西、不真的刪</td><td><code>git clean -ndX</code></td></tr>
+      </tbody>
+    </table>
+    <blockquote>
+      <p><b>注意</b>：<code>git clean -fdX</code> 會把 <code>.gitignore</code> 內所有東西都殺掉，包括 <code>verify/data_rx_1024_complex_64.npy</code>（測試資料 8 MB），請確保您有備份。</p>
+    </blockquote>
+
+    <h2 id="appendix-d">附錄 D：VCK190 板上模組速查</h2>
+    <p>以下整理自 2.1 節 VCK190 開發板照片中的標示，重點是快速分辨「這個接頭 / 晶片是做什麼用的」。</p>
+    <table>
+      <thead><tr><th>圖中名稱</th><th>定義</th><th>主要功能</th></tr></thead>
+      <tbody>
+        <tr><td><b>Versal XCVC1902-2MSEVSVA2197 Adaptive SoC</b></td><td>本板的主晶片，屬於 Versal AI Core 系列。</td><td>承載本專案的 PS / PL / AIE 三層異質運算；AIE 加速 FFT，PL 做資料搬運，PS 跑 Linux host 控制流程。</td></tr>
+        <tr><td><b>DDR4 DIMM (8GB)</b></td><td>插槽式 DDR4 系統記憶體。</td><td>提供 Versal PS / PL / AIE 經由記憶體系統存取的大容量工作區，本專案的輸入、中間結果與輸出都以 DDR 為中心流動。</td></tr>
+        <tr><td><b>LPDDR4 Component (8GB)</b></td><td>板上焊接式 LPDDR4 記憶體。</td><td>提供額外高速記憶體資源，適合需要較高 bandwidth 或額外 buffer 的設計。</td></tr>
+        <tr><td><b>System Controller XCZU4EG</b></td><td>板上管理用 Zynq UltraScale+ MPSoC，不是本專案主要運算晶片。</td><td>負責板級管理，例如電源、時脈、感測、狀態監控、韌體管理與部分設定控制。</td></tr>
+        <tr><td><b>Ethernet (SysCont)</b></td><td>連到 System Controller 的乙太網路埠。</td><td>用於板級管理、遠端監控或 system controller 韌體 / 設定相關操作。</td></tr>
+        <tr><td><b>MicroSD (SysCont)</b></td><td>給 System Controller 使用的 microSD 卡槽。</td><td>存放或更新 system controller 相關啟動映像、韌體或管理資料。</td></tr>
+        <tr><td><b>MicroSD (Versal)</b></td><td>給 Versal 主 SoC 使用的 microSD 卡槽。</td><td>作為 Versal PS 的開機 / 儲存媒體；常放 BOOT.BIN、Linux、rootfs、xclbin、host.exe 與測試資料。</td></tr>
+        <tr><td><b>PCIe Gen4 x8</b></td><td>PCI Express Gen4、8 lane 高速介面。</td><td>讓 VCK190 可作為 PCIe endpoint / 加速卡連到主機，適合主機與 Versal 間的高速資料傳輸。</td></tr>
+        <tr><td><b>FMC (2x)</b></td><td>FPGA Mezzanine Card 擴充連接器，共兩組。</td><td>外接 ADC / DAC、感測器、射頻板或自訂 I/O mezzanine card，擴充 PL 可接的高速或一般 I/O。</td></tr>
+        <tr><td><b>QSFP28</b></td><td>Quad Small Form-factor Pluggable 28G 高速光電模組介面。</td><td>常用於 100G Ethernet 或其他高速 serial link 測試。</td></tr>
+        <tr><td><b>SFP28 (2x)</b></td><td>Small Form-factor Pluggable 28G 高速光電模組介面，共兩組。</td><td>常用於 10G / 25G Ethernet 或高速 serial transceiver 測試。</td></tr>
+        <tr><td><b>Ethernet (2x)</b></td><td>連到主系統的雙乙太網路埠。</td><td>提供 Versal 系統一般網路連線，可用於 Linux networking、資料傳輸或應用層通訊。</td></tr>
+        <tr><td><b>HDMI</b></td><td>影像輸出 / 輸入相關介面。</td><td>可用於顯示、影像 pipeline 或 multimedia demo；本 2D FFT 範例通常不會用到。</td></tr>
+        <tr><td><b>HSDP / JTAG / UART (USB Type-C)</b></td><td>Debug 與主控 console 介面，使用 USB Type-C 實體接頭。</td><td>用於 JTAG download / debug、UART console、硬體 bring-up 與開發時觀察 PS/Linux 訊息。</td></tr>
+        <tr><td><b>Boot Module Connector</b></td><td>可接 boot module 的板上連接器。</td><td>提供開機模式、設定或板級啟動相關擴充；通常用於開發板 boot / configuration 流程。</td></tr>
+        <tr><td><b>Power Switch</b></td><td>開發板電源開關。</td><td>控制整張 VCK190 開發板上電 / 斷電。</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const darkBtn = document.getElementById('toggle-dark');
+  const saved = localStorage.getItem('notes-theme');
+  if (saved === 'dark' ||
+      (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.classList.add('dark');
+  }
+
+  function initMermaid() {
+    if (!window.mermaid) return;
+    const isDark = root.classList.contains('dark');
+    document.querySelectorAll('.mermaid').forEach(el => {
+      if (!el.dataset.src) el.dataset.src = el.textContent;
+      el.removeAttribute('data-processed');
+      el.innerHTML = el.dataset.src;
+    });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? 'dark' : 'default',
+      flowchart: { htmlLabels: true, curve: 'basis' },
+    });
+    mermaid.run({ querySelector: '.mermaid' });
+  }
+  initMermaid();
+
+  darkBtn.addEventListener('click', () => {
+    root.classList.toggle('dark');
+    localStorage.setItem('notes-theme', root.classList.contains('dark') ? 'dark' : 'light');
+    initMermaid();
+  });
+
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText);
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1200);
+    });
+    pre.appendChild(btn);
+  });
+
+  const links = document.querySelectorAll('nav.toc a');
+  const sections = [...links].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = () => {
+    let current = sections[0];
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top < 100) current = s;
+    }
+    links.forEach(a => a.classList.toggle('active',
+      a.getAttribute('href') === '#' + current.id));
+  };
+  window.addEventListener('scroll', setActive, { passive: true });
+  setActive();
+
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const tgt = document.querySelector(a.getAttribute('href'));
+      tgt?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>

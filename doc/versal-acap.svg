@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" role="img" aria-label="Versal ACAP contains PS, PL, and AIE">
+  <rect x="20" y="20" width="860" height="240" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+  <text x="450" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#0f172a">Versal ACAP / Adaptive SoC</text>
+
+  <rect x="60" y="90" width="230" height="130" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="175" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#78350f">PS</text>
+  <text x="175" y="153" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#78350f">ARM Cortex-A72 CPU core</text>
+  <text x="175" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#78350f">Linux · host.cpp · XRT</text>
+  <text x="175" y="202" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#92400e">流程 / I/O / 調度</text>
+
+  <rect x="335" y="90" width="230" height="130" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="450" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#1e3a8a">PL</text>
+  <text x="450" y="153" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#1e3a8a">FPGA fabric</text>
+  <text x="450" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#1e3a8a">mm2s · s2mm · strided</text>
+  <text x="450" y="202" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">資料搬運 / 自訂 datapath</text>
+
+  <rect x="610" y="90" width="230" height="130" rx="10" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+  <text x="725" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#831843">AIE</text>
+  <text x="725" y="153" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#831843">Vector processor array</text>
+  <text x="725" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#831843">FFT · twiddle multiply</text>
+  <text x="725" y="202" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#be185d">高吞吐 DSP 運算</text>
+
+  <path d="M292 155 H333" stroke="#64748b" stroke-width="2" stroke-dasharray="5 4"/>
+  <path d="M567 155 H608" stroke="#64748b" stroke-width="2" stroke-dasharray="5 4"/>
+</svg>
