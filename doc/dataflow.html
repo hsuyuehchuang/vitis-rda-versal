@@ -15,6 +15,7 @@
     --orange: #d29922;
     --yellow: #ffd60a;
     --pink: #ff7b72;
+    --purple: #d2a8ff;
     --dim: #6e7681;
     --panel: #161b22;
     --text: #c9d1d9;
@@ -72,7 +73,10 @@
 
   svg .block-frame { stroke: var(--green); stroke-width: 1.6; transition: all .2s; }
   svg .block-ddr   { stroke: var(--blue); }
+  svg .block-aie   { stroke: var(--purple); }
   svg .block-ps    { stroke: var(--orange); }
+  svg .lg-label    { fill: var(--text); font-size: 11px; dominant-baseline: middle; }
+  svg .lg-title    { fill: var(--dim); font-size: 10px; font-weight: 700; }
 
   svg .clickable { cursor: pointer; }
   svg .clickable .block-bg { transition: fill .2s; }
@@ -158,19 +162,34 @@
 
       <!-- ============ PS controller (clickable, role=control) ============ -->
       <g class="clickable" data-block="ps">
-        <rect class="block-bg block-frame block-ps" x="40" y="20" width="160" height="46" rx="3"/>
-        <text class="block-name" x="120" y="38" fill="#e3b341">PS (ARM Cortex-A72 CPU core)</text>
-        <text class="block-sub"  x="120" y="55">host.cpp · XRT</text>
+        <rect class="block-bg block-frame block-ps" x="40" y="20" width="190" height="46" rx="3"/>
+        <text class="block-name" x="135" y="38" fill="#e3b341">PS (ARM Cortex-A72 CPU core)</text>
+        <text class="block-sub"  x="135" y="55">host.cpp · XRT</text>
       </g>
-      <path class="control-arrow" id="arr-ctl" d="M 120 68 L 120 100"/>
-      <text class="lbl" x="195" y="84" fill="#79c0ff">XRT control (虛線)</text>
+      <path class="control-arrow" id="arr-ctl" d="M 135 68 L 135 100"/>
+      <text class="lbl" x="220" y="84" fill="#79c0ff">XRT control (虛線)</text>
+
+      <!-- ============ Legend (top right) ============ -->
+      <g transform="translate(820, 24)">
+        <text class="lg-title" x="0" y="2">LEGEND</text>
+        <g transform="translate(0, 22)">
+          <rect class="block-frame block-ddr" x="0" y="-7" width="14" height="14" rx="2" fill="none"/>
+          <text class="lg-label" x="22" y="0">DDR</text>
+          <rect class="block-frame" x="70" y="-7" width="14" height="14" rx="2" fill="none"/>
+          <text class="lg-label" x="92" y="0">PL</text>
+          <rect class="block-frame block-aie" x="130" y="-7" width="14" height="14" rx="2" fill="none"/>
+          <text class="lg-label" x="152" y="0">AIE</text>
+          <rect class="block-frame block-ps" x="190" y="-7" width="14" height="14" rx="2" fill="none"/>
+          <text class="lg-label" x="212" y="0">PS</text>
+        </g>
+      </g>
 
       <!-- ============ Versal Chip frame ============ -->
       <rect x="30" y="100" width="1050" height="280" rx="4" fill="none" stroke="#21262d"/>
-      <text x="44" y="118" fill="#6e7681" font-size="11">┌ Versal Chip ──────────────────────────────────────────────────────────────────────────</text>
+      <text x="44" y="118" fill="#6e7681" font-size="11">Versal Chip</text>
 
       <!-- =========================================================
-           TOP ROW (y = 200): DDR → mm2s → Col_FFT → s2mm → DDR_int
+           ROW 1 (y = 200, LTR): DDR_in → mm2s → AIE Col → s2mm → DDR_int
            ========================================================= -->
 
       <!-- Step 1: DDR_in -->
@@ -187,10 +206,10 @@
         <text class="block-sub"  x="330" y="212">PL datamover</text>
       </g>
 
-      <!-- Step 3: Col FFT -->
+      <!-- Step 3: Col FFT (AIE - purple) -->
       <g class="clickable" data-block="col">
-        <rect class="block-bg block-frame" x="465" y="170" width="190" height="60" rx="3"/>
-        <text class="block-name" x="560" y="192">AIE · Col FFT + Twd</text>
+        <rect class="block-bg block-frame block-aie" x="465" y="170" width="190" height="60" rx="3"/>
+        <text class="block-name" x="560" y="192" fill="#d2a8ff">AIE · Col FFT + Twd</text>
         <text class="block-sub"  x="560" y="212">1024-pt × twiddle mul</text>
       </g>
 
@@ -208,52 +227,50 @@
         <text class="block-sub"  x="995" y="212">intermediate</text>
       </g>
 
-      <!-- Top arrows -->
+      <!-- Row 1 arrows (horizontal LTR) -->
       <path class="arrow" id="arr-1-2" d="M 178 200 L 273 200"/>
       <path class="arrow" id="arr-2-3" d="M 383 200 L 458 200"/>
       <path class="arrow" id="arr-3-4" d="M 658 200 L 738 200"/>
       <path class="arrow" id="arr-4-5" d="M 848 200 L 928 200"/>
+      <text class="lbl-step" x="225" y="187">② AXI-MM</text>
+      <text class="lbl-step" x="420" y="187">③ PLIO</text>
+      <text class="lbl-step" x="698" y="187">④ PLIO</text>
+      <text class="lbl-step" x="888" y="187">⑤ AXI-MM</text>
 
-      <text class="lbl-step" x="225" y="187">AXI-MM</text>
-      <text class="lbl-step" x="420" y="187">PLIO</text>
-      <text class="lbl-step" x="698" y="187">PLIO</text>
-      <text class="lbl-step" x="888" y="187">AXI-MM</text>
-
-      <!-- U-turn arrow: DDR_int (right side) curves down to strided -->
-      <path class="arrow" id="arr-5-6" d="M 995 228 C 1075 240, 1075 350, 920 360"/>
-      <text class="lbl-step" x="1058" y="295">AXI-MM</text>
-      <text class="lbl" x="1058" y="310">(轉置式讀)</text>
+      <!-- Step ⑥: DDR_int → strided, orthogonal connector (down + left + down) -->
+      <path class="arrow" id="arr-5-6" d="M 995 225 L 995 280 L 285 280 L 285 333"/>
+      <text class="lbl-step" x="640" y="270">⑥ AXI-MM (轉置式讀)</text>
 
       <!-- =========================================================
-           BOTTOM ROW (y = 365): strided → Row_FFT → DDR_final
+           ROW 2 (y = 365, LTR): strided → AIE Row → DDR_final
            ========================================================= -->
 
-      <!-- Step 6: strided_mm2s -->
+      <!-- Step 6 box: strided_mm2s (PL) -->
       <g class="clickable" data-block="strided">
-        <rect class="block-bg block-frame" x="745" y="335" width="170" height="60" rx="3"/>
-        <text class="block-name" x="830" y="358">strided_mm2s</text>
-        <text class="block-sub"  x="830" y="378">stride=1024 · 邊讀邊轉置</text>
+        <rect class="block-bg block-frame" x="200" y="335" width="170" height="60" rx="3"/>
+        <text class="block-name" x="285" y="358">strided_mm2s</text>
+        <text class="block-sub"  x="285" y="378">stride=1024 · 邊讀邊轉置</text>
       </g>
 
-      <!-- Step 7: Row FFT -->
+      <!-- Step 7 box: Row FFT (AIE - purple) -->
       <g class="clickable" data-block="row">
-        <rect class="block-bg block-frame" x="465" y="335" width="190" height="60" rx="3"/>
-        <text class="block-name" x="560" y="358">AIE · Row FFT</text>
+        <rect class="block-bg block-frame block-aie" x="465" y="335" width="190" height="60" rx="3"/>
+        <text class="block-name" x="560" y="358" fill="#d2a8ff">AIE · Row FFT</text>
         <text class="block-sub"  x="560" y="378">1024-pt</text>
       </g>
 
-      <!-- Step 8: DDR_final -->
+      <!-- Step 8 box: DDR_final -->
       <g class="clickable" data-block="ddr-fin">
-        <rect class="block-bg block-frame block-ddr" x="85" y="335" width="190" height="60" rx="3"/>
-        <text class="block-name" x="180" y="358" fill="#79c0ff">DDR (final)</text>
-        <text class="block-sub"  x="180" y="378">2D FFT result</text>
+        <rect class="block-bg block-frame block-ddr" x="745" y="335" width="200" height="60" rx="3"/>
+        <text class="block-name" x="845" y="358" fill="#79c0ff">DDR (final)</text>
+        <text class="block-sub"  x="845" y="378">2D FFT result</text>
       </g>
 
-      <!-- Bottom arrows -->
-      <path class="arrow" id="arr-6-7" d="M 740 365 L 663 365"/>
-      <path class="arrow" id="arr-7-8" d="M 458 365 L 283 365"/>
-      <text class="lbl-step" x="700" y="350">PLIO</text>
-      <text class="lbl-step" x="370" y="350">GMIO (AIE 直寫 DDR)</text>
+      <!-- Row 2 arrows (LTR now) -->
+      <path class="arrow" id="arr-6-7" d="M 373 365 L 458 365"/>
+      <path class="arrow" id="arr-7-8" d="M 658 365 L 738 365"/>
+      <text class="lbl-step" x="416" y="352">⑦ PLIO</text>
+      <text class="lbl-step" x="698" y="352">⑧ GMIO (AIE 直寫 DDR)</text>
 
       <!-- DDR note -->
       <text x="550" y="430" fill="#6e7681" font-size="10" text-anchor="middle">

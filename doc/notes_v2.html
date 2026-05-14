@@ -1,0 +1,1890 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="generator" content="pandoc" />
+<title>vitis-rda-versal 專案 High-level 講解</title>
+
+<!-- highlight.js for code block syntax highlighting (theme swapped by dark mode JS) -->
+<link id="hljs-light" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-light.min.css" />
+<link id="hljs-dark"  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-dark.min.css" disabled />
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
+
+<!-- Mermaid (no-op if no .mermaid blocks) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+<!-- Glossary (relative to the generated HTML; optional, if missing tooltips are skipped) -->
+<script src="./html-template/glossary.js" onerror="window.GLOSSARY={};"></script>
+
+<style>
+  :root {
+    --bg:        #fafafa;
+    --fg:        #1d1d1f;
+    --muted:    #6b7280;
+    --accent:   #0a84ff;
+    --card:     #ffffff;
+    --border:   #e5e7eb;
+    --code-bg:  #f3f4f6;
+    --code-fg:  #d97706;   /* inline code 亮橘色（light） */
+    --quote-bg: #f1f5f9;
+    --term-bg:  #fff7ed;
+    --term-bd:  #fdba74;
+    --shadow:   0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+  }
+  html.dark {
+    --bg:        #0f1115;
+    --fg:        #e5e7eb;
+    --muted:    #9ca3af;
+    --accent:   #4dabff;
+    --card:     #161a22;
+    --border:   #2a2f3a;
+    --code-bg:  #1d222b;
+    --code-fg:  #ffa657;   /* inline code 亮橘色（dark，類似 GitHub Dark） */
+    --quote-bg: #1a1f2a;
+    --term-bg:  #2a1f10;
+    --term-bd:  #b45309;
+    --shadow:   0 1px 2px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+                 "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* === A2 閱讀進度條 === */
+  #read-progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    width: 0; background: var(--accent);
+    z-index: 100; transition: width .08s linear;
+  }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    padding: 10px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header .title { font-weight: 600; font-size: 15px; }
+  header .spacer { flex: 1; }
+  header button {
+    background: transparent; color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 12px; cursor: pointer; font-size: 14px;
+  }
+  header button:hover { background: var(--code-bg); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+    gap: 32px;
+  }
+  nav.toc {
+    position: sticky; top: 72px; align-self: start;
+    max-height: calc(100vh - 96px); overflow-y: auto;
+    font-size: 14px;
+  }
+  nav.toc h3 {
+    font-size: 12px; text-transform: uppercase; color: var(--muted);
+    letter-spacing: .08em; margin: 0 0 8px;
+  }
+  /* Pandoc 產生的 toc 是巢狀 <ul><li><a>，這裡讓 H2 看起來是頂層 */
+  nav.toc ul { list-style: none; padding: 0; margin: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block; padding: 4px 8px; border-radius: 6px;
+    color: var(--fg); border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { background: var(--code-bg); text-decoration: none; }
+  nav.toc a.active {
+    background: var(--code-bg); border-left-color: var(--accent);
+    color: var(--accent); font-weight: 500;
+  }
+  /* H1（最外層）粗體 */
+  nav.toc > ul > li > a { font-weight: 600; }
+  /* H3 (nested 2 層以上) 縮排 + 淡色 */
+  nav.toc ul ul ul a { padding-left: 24px; color: var(--muted); font-size: 13px; }
+  nav.toc ul ul ul ul a { padding-left: 36px; }
+
+  main { min-width: 0; }
+  main h1 { font-size: 28px; margin: 0 0 12px; }
+  main h2 {
+    font-size: 22px; margin: 40px 0 12px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 70px;
+  }
+  main h3 { font-size: 18px; margin: 28px 0 8px; scroll-margin-top: 70px; }
+  main h4 { font-size: 16px; margin: 20px 0 6px; scroll-margin-top: 70px; }
+  main p, main li { color: var(--fg); }
+  main ul, main ol { padding-left: 22px; }
+  blockquote {
+    margin: 14px 0;
+    padding: 12px 16px;
+    background: var(--quote-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    color: var(--fg);
+  }
+  blockquote p { margin: 4px 0; }
+
+  /* === A4 程式碼樣式 === */
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    color: var(--code-fg);  /* 亮橘色 */
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  pre code {
+    background: transparent; padding: 0; font-size: 13px; line-height: 1.5;
+    color: inherit;  /* 在 pre 內由 highlight.js 控色 */
+  }
+  pre .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--card); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer;
+    opacity: 0; transition: opacity .15s;
+  }
+  pre:hover .copy-btn { opacity: 1; }
+  pre .copy-btn:hover { color: var(--accent); }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+    background: var(--card); border-radius: 8px; overflow: hidden;
+    box-shadow: var(--shadow); font-size: 14px;
+  }
+  th, td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; color: var(--fg); }
+  tr:last-child td { border-bottom: none; }
+
+  img { max-width: 100%; height: auto; border-radius: 8px; box-shadow: var(--shadow); display: block; margin: 12px 0; }
+
+  /* === A3 details / summary === */
+  details {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 14px 0;
+    background: var(--card);
+  }
+  details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 4px 0;
+    list-style: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: "▸"; color: var(--muted); transition: transform .15s;
+    display: inline-block;
+  }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details[open] { padding-bottom: 14px; }
+
+  /* === A1 詞彙懸停提示 === */
+  .term {
+    background: var(--term-bg);
+    border-bottom: 1px dashed var(--term-bd);
+    padding: 0 2px;
+    border-radius: 2px;
+    cursor: help;
+    position: relative;
+  }
+  .term-tooltip {
+    position: fixed;
+    background: var(--card);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 360px;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .term-tooltip.visible { opacity: 1; }
+  .term-tooltip strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 14px; }
+
+  .mermaid {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 14px 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .mermaid svg { max-width: 100%; height: auto !important; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; max-height: none; }
+  }
+  @media print {
+    header.topbar, nav.toc, #read-progress, .copy-btn { display: none !important; }
+    .layout { grid-template-columns: 1fr; padding: 0; }
+    body { font-size: 12px; line-height: 1.5; }
+    pre, table, details { page-break-inside: avoid; }
+    details { border: none; padding: 0; }
+    details[open] > summary { display: none; }
+    /* 確保印出時 details 內容都展開 */
+    details:not([open]) > *:not(summary) { display: block !important; }
+    .term { background: transparent; border-bottom: none; }
+  }
+</style>
+
+<!-- v2 專用 CSS：A5 / B2 / B3 -->
+<style>
+  /* === A5 互動三層圖 === */
+  .layer-explorer {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 20px;
+    margin: 20px 0 24px;
+    align-items: stretch;
+  }
+  .layer-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .layer-block {
+    text-align: left;
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--card);
+    color: var(--fg);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .layer-block .layer-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .layer-block[data-layer="ps"]  .layer-icon { background: #ef4444; }
+  .layer-block[data-layer="pl"]  .layer-icon { background: #22c55e; }
+  .layer-block[data-layer="aie"] .layer-icon { background: #8b5cf6; }
+  .layer-block[data-layer="sys"] .layer-icon { background: #64748b; }
+  .layer-block .layer-meta { display: flex; flex-direction: column; }
+  .layer-block .layer-name { font-size: 15px; }
+  .layer-block .layer-role { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .layer-block:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .layer-block.active { border-color: var(--accent); background: var(--quote-bg); box-shadow: var(--shadow); }
+
+  .layer-panel {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 18px 22px;
+    min-height: 220px;
+    box-shadow: var(--shadow);
+  }
+  .layer-panel h4 { margin: 0 0 6px; font-size: 17px; }
+  .layer-panel .panel-role {
+    display: inline-block;
+    background: var(--quote-bg);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .layer-panel ol { margin: 8px 0; padding-left: 22px; }
+  .layer-panel ol li { margin: 4px 0; }
+  .layer-panel .panel-files { margin-top: 12px; font-size: 13px; }
+  .layer-panel .panel-files .label { color: var(--muted); margin-right: 6px; }
+  .layer-panel .panel-files code { font-size: 12px; }
+
+  @media (max-width: 720px) {
+    .layer-explorer { grid-template-columns: 1fr; }
+  }
+
+  /* === 內聯 versal-acap SVG（跟著 html.dark 切換配色） === */
+  .versal-acap-svg {
+    display: block;
+    max-width: 700px;
+    width: 100%;
+    height: auto;
+    margin: 16px auto;
+  }
+  .versal-acap-svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans TC", sans-serif; }
+  /* Light 模式預設 */
+  .versal-acap-svg .bg-outer    { fill: #f8fafc; stroke: #94a3b8; }
+  .versal-acap-svg .title       { fill: #0f172a; }
+  .versal-acap-svg .box-ps      { fill: #fef3c7; stroke: #d97706; }
+  .versal-acap-svg .text-ps     { fill: #78350f; }
+  .versal-acap-svg .text-ps-2   { fill: #78350f; }
+  .versal-acap-svg .text-ps-dim { fill: #92400e; }
+  .versal-acap-svg .box-pl      { fill: #dcfce7; stroke: #16a34a; }
+  .versal-acap-svg .text-pl     { fill: #14532d; }
+  .versal-acap-svg .text-pl-2   { fill: #14532d; }
+  .versal-acap-svg .text-pl-dim { fill: #15803d; }
+  .versal-acap-svg .box-aie     { fill: #f3e8ff; stroke: #9333ea; }
+  .versal-acap-svg .text-aie    { fill: #581c87; }
+  .versal-acap-svg .text-aie-2  { fill: #581c87; }
+  .versal-acap-svg .text-aie-dim{ fill: #7e22ce; }
+  .versal-acap-svg .connector   { stroke: #64748b; }
+  /* Dark 模式：跟著頁面 html.dark toggle */
+  html.dark .versal-acap-svg .bg-outer    { fill: #161b22; stroke: #30363d; }
+  html.dark .versal-acap-svg .title       { fill: #c9d1d9; }
+  html.dark .versal-acap-svg .box-ps      { fill: rgba(210,153,34,0.10);  stroke: #d29922; }
+  html.dark .versal-acap-svg .text-ps     { fill: #d29922; }
+  html.dark .versal-acap-svg .text-ps-2   { fill: #c9d1d9; }
+  html.dark .versal-acap-svg .text-ps-dim { fill: #b58218; }
+  html.dark .versal-acap-svg .box-pl      { fill: rgba(77,194,90,0.10);   stroke: #4dc25a; }
+  html.dark .versal-acap-svg .text-pl     { fill: #4dc25a; }
+  html.dark .versal-acap-svg .text-pl-2   { fill: #c9d1d9; }
+  html.dark .versal-acap-svg .text-pl-dim { fill: #3da849; }
+  html.dark .versal-acap-svg .box-aie     { fill: rgba(210,168,255,0.10); stroke: #d2a8ff; }
+  html.dark .versal-acap-svg .text-aie    { fill: #d2a8ff; }
+  html.dark .versal-acap-svg .text-aie-2  { fill: #c9d1d9; }
+  html.dark .versal-acap-svg .text-aie-dim{ fill: #b794f4; }
+  html.dark .versal-acap-svg .connector   { stroke: #6e7681; }
+
+  /* === 可點擊互動式資料流圖（iframe） === */
+  .dataflow-embed {
+    margin: 18px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0d1117;
+    box-shadow: var(--shadow);
+  }
+  .dataflow-embed iframe {
+    display: block;
+    width: 100%;
+    height: 720px;
+    border: 0;
+    background: #0d1117;
+  }
+  @media (max-width: 900px) {
+    .dataflow-embed iframe { height: 820px; }
+  }
+  @media print {
+    .dataflow-embed { display: none; }
+  }
+
+  /* === B2 AIE Tile 陣列 === */
+  .tile-array {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin: 16px 0;
+    box-shadow: var(--shadow);
+  }
+  .tile-array h4 { margin: 0 0 4px; font-size: 15px; }
+  .tile-array .tile-hint { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  .tile-array .tile-grid {
+    display: grid;
+    grid-template-columns: repeat(50, 1fr);
+    gap: 2px;
+    padding: 6px;
+    background: var(--quote-bg);
+    border-radius: 6px;
+  }
+  .tile-array .tile {
+    aspect-ratio: 1;
+    background: var(--border);
+    border-radius: 2px;
+    transition: transform .1s, background .1s;
+    cursor: help;
+  }
+  .tile-array .tile.col-fft { background: #8b5cf6; }
+  .tile-array .tile.row-fft { background: #f59e0b; }
+  .tile-array .tile:hover { transform: scale(1.6); z-index: 5; outline: 1px solid var(--accent); }
+  .tile-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .tile-legend .swatch {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .tile-legend .swatch.col { background: #8b5cf6; }
+  .tile-legend .swatch.row { background: #f59e0b; }
+  .tile-legend .swatch.unused { background: var(--border); }
+
+  /* === B3 搜尋框 === */
+  .file-search {
+    margin: 14px 0 18px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .file-search input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--fg);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .file-search input:focus { outline: none; border-color: var(--accent); }
+  .file-search .file-count {
+    color: var(--muted);
+    font-size: 12px;
+    min-width: 80px;
+    text-align: right;
+  }
+  tr.search-hidden { display: none; }
+
+  /* Print 模式下，互動元件退化 */
+  @media print {
+    .layer-blocks { display: none; }
+    .layer-explorer { grid-template-columns: 1fr; }
+    .file-search { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- A2 進度條 -->
+<div id="read-progress"></div>
+
+<header class="topbar">
+  <span class="title">vitis-rda-versal 專案 High-level 講解</span>
+  <span class="spacer"></span>
+  <button id="toggle-dark" title="切換深淺模式">Dark</button>
+  <button onclick="window.print()" title="列印 / 存 PDF">Print</button>
+</header>
+
+<div class="layout">
+  <nav class="toc" id="toc">
+    <h3>章節導覽</h3>
+    <ul>
+    <li><a href="#vitis-rda-versal-專案-high-level-講解">vitis-rda-versal 專案 High-level 講解</a>
+    <ul>
+    <li><a href="#0-執行摘要-executive-summary">0. 執行摘要 (Executive Summary)</a></li>
+    <li><a href="#1-應用案例先導為何需要-ai-engine">1. 應用案例先導：為何需要 AI Engine？</a></li>
+    <li><a href="#2-核心架構解析versal-acap-與-ai-engine">2. 核心架構解析：Versal ACAP 與 AI Engine</a>
+    <ul>
+    <li><a href="#21-硬體層級定義">2.1 硬體層級定義</a></li>
+    <li><a href="#22-什麼是-versal-acap">2.2 什麼是 Versal ACAP？</a></li>
+    <li><a href="#23-深入理解-ai-engine">2.3 深入理解 AI Engine</a></li>
+    </ul></li>
+    <li><a href="#3-異質運算架構pspl-與-aie-的完美分工">3. 異質運算架構：PS、PL 與 AIE 的完美分工</a>
+    <ul>
+    <li><a href="#31-三層各司其職以-2d-fft-專案為例">3.1 三層各司其職：以 2D FFT 專案為例</a></li>
+    </ul></li>
+    <li><a href="#4-實作拆解1024x1024-2d-fft-資料流">4. 實作拆解：1024x1024 2D FFT 資料流</a></li>
+    <li><a href="#5-總結與技術心得">5. 總結與技術心得</a></li>
+    <li><a href="#附錄-aai-engine-硬體名詞解釋">附錄 A：AI Engine 硬體名詞解釋</a></li>
+    <li><a href="#附錄-b專案檔案與資料夾速查">附錄 B：專案檔案與資料夾速查</a>
+    <ul>
+    <li><a href="#b1-關鍵檔案路徑">B.1 關鍵檔案路徑</a></li>
+    <li><a href="#b2-資料夾結構">B.2 資料夾結構</a></li>
+    <li><a href="#b3-根目錄產出檔-generated-files">B.3 根目錄產出檔 (Generated Files)</a></li>
+    </ul></li>
+    <li><a href="#附錄-c編譯流程與清理指南">附錄 C：編譯流程與清理指南</a>
+    <ul>
+    <li><a href="#c1-編譯流程-makefile-targets">C.1 編譯流程 (Makefile Targets)</a></li>
+    <li><a href="#c2-一鍵清理">C.2 一鍵清理</a></li>
+    </ul></li>
+    <li><a href="#附錄-dvck190-板上模組速查">附錄 D：VCK190 板上模組速查</a></li>
+    </ul></li>
+    </ul>
+  </nav>
+
+  <main>
+<h1 id="vitis-rda-versal-專案-high-level-講解">vitis-rda-versal 專案 High-level 講解</h1>
+<ul>
+<li><strong>時長</strong>：~10 分鐘</li>
+<li><strong>報告對象</strong>：對 AMD/Xilinx Versal 晶片家族無先備知識之同仁。</li>
+<li><strong>重點</strong>：
+<ol>
+<li>AI Engine 是什麼</li>
+<li>AIE 應用案例探討 (以 2D FFT 為例)</li>
+<li>PS / PL / AIE 三層分工</li>
+</ol></li>
+</ul>
+<h2 id="0-執行摘要-executive-summary">0. 執行摘要 (Executive Summary)</h2>
+<ul>
+<li><p><strong>文件目的</strong>： 本文件旨在快速（約 10 分鐘）建立團隊對 <code>vitis-rda-versal</code> 專案的 High-level 認知。重點將解構 AI Engine (AIE) 之運作原理，並釐清處理系統 (PS)、可程式化邏輯 (PL) 與 AIE 間的軟硬體協作機制。</p></li>
+<li><p><strong>內容範疇</strong>： 本文件之探討核心為 <strong>AI Engine (AIE)</strong> 的運算模型與實務應用。系統中的 PS 與 PL 模組將僅針對其與 AIE 的介面銜接（如資料流控制、記憶體搬運）進行輔助性探討，不展開底層暫存器或韌體細節。</p></li>
+</ul>
+<hr />
+<h2 id="1-應用案例先導為何需要-ai-engine">1. 應用案例先導：為何需要 AI Engine？</h2>
+<p>AI Engine 具備極強的平行運算能力，非常適合處理高吞吐量的數位訊號處理 (DSP) 與矩陣運算。為了具體展示 AIE 的效能，本專案選擇了一個經典的應用情境：</p>
+<blockquote>
+<p><strong>案例情境：在 Xilinx Versal VCK190 上使用 AI Engine 加速 1024 × 1024 二維 FFT</strong> 此範例為完整的端到端 (end-to-end) 架構，不僅展示 AIE 的運算力，更示範如何搭配 PL (FPGA) 端的 HLS 模組搬運資料，以及 PS (ARM CPU) 端的 host 程式進行系統排程。</p>
+</blockquote>
+<p><strong>本章重點</strong>：</p>
+<blockquote>
+<p>AI Engine 專職加速複雜的數學與訊號處理。在此 2D FFT 案例中，AI Engine 專心負責數學運算、FPGA 負責高效搬移資料、ARM CPU 則在背後指揮大局。</p>
+</blockquote>
+<hr />
+<h2 id="2-核心架構解析versal-acap-與-ai-engine">2. 核心架構解析：Versal ACAP 與 AI Engine</h2>
+<h3 id="21-硬體層級定義">2.1 硬體層級定義</h3>
+<p>為利於快速釐清硬體定義，我們直接從「物理大小（由外到內包覆）」來拆解這幾個名詞：</p>
+<img src="./Xilinx-Versal-VCK190.png" alt="Xilinx Versal VCK190 Evaluation Board" width="500" />
+
+<table>
+<thead>
+<tr class="header">
+<th>實體層級</th>
+<th>本專案硬體名詞</th>
+<th>這是什麼？</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>開發板</strong></td>
+<td><strong>VCK190</strong></td>
+<td>實體的評估板 (Board)，包含電源、風扇與周邊介面，如同電腦主機板。</td>
+</tr>
+<tr class="even">
+<td><strong>SoC 晶片</strong></td>
+<td><strong>XCVC1902</strong></td>
+<td>焊在板子上的那顆 SoC 晶片。<br><em>(註：<strong>Versal ACAP</strong> 是這顆晶片的「家族系列統稱」，如同 Intel Core i7 是一個系列名稱)</em></td>
+</tr>
+<tr class="odd">
+<td><strong>晶片內部區塊</strong></td>
+<td><strong>AI Engine (AIE)</strong></td>
+<td>晶片內部的三大子系統之一（另有 PS 與 PL）。是由 400 個微型運算單元 (Tiles) 組成的 2D 計算陣列總稱。</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Summary</strong>：</p>
+<blockquote>
+<p>本專案基於 <strong>VCK190 評估板</strong>進行開發，其核心為 <strong>Versal 架構之 XCVC1902 SoC 晶片</strong>。本報告探討之主體 <strong>AI Engine</strong>，即為內建於該 SoC 之中、由 400 個 Tiles 所構成的高效能平行運算子系統。</p>
+</blockquote>
+<hr />
+<h3 id="22-什麼是-versal-acap">2.2 什麼是 Versal ACAP？</h3>
+<h4 id="acap-adaptive-compute-acceleration-platform自適應運算加速平台"><strong>ACAP (Adaptive Compute Acceleration Platform，自適應運算加速平台)</strong></h4>
+<ul>
+<li><p>ACAP 本質上為一顆 SoC，但因其內部同時整合了 CPU、FPGA 與 AI 陣列三種截然不同的運算資源，AMD/Xilinx 為了突顯其異質運算特性，特別創造了「ACAP」這個名詞來與傳統 SoC 做出區隔。</p></li>
+<li><p>在 AMD/Xilinx 的定義裡，一顆 Versal ACAP 裡面，主要包含三大區塊：</p></li>
+</ul>
+<table>
+<thead>
+<tr class="header">
+<th>晶片內部區塊</th>
+<th>縮寫</th>
+<th>內容</th>
+<th>適合做的事</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Processing System</strong></td>
+<td><strong>PS</strong></td>
+<td>ARM Cortex-A72 (Linux runs here)</td>
+<td>控制流程、I/O、調度</td>
+</tr>
+<tr class="even">
+<td><strong>Programmable Logic</strong></td>
+<td><strong>PL</strong></td>
+<td>傳統 FPGA fabric</td>
+<td>自定義 datapath、I/O 介面、bit-level operation</td>
+</tr>
+<tr class="odd">
+<td><strong>AI Engine</strong></td>
+<td><strong>AIE</strong></td>
+<td>VLIW SIMD vector processor array</td>
+<td>高吞吐、規律性、可向量化的運算</td>
+</tr>
+</tbody>
+</table>
+<img src="./versal-acap.svg" alt="Versal ACAP PS PL AIE diagram" width="700" />
+
+<hr />
+<h3 id="23-深入理解-ai-engine">2.3 深入理解 AI Engine</h3>
+<p><strong>1. AIE 到底是什麼？</strong></p>
+<ul>
+<li>是一個由數百個微型計算單元 (Tiles) 構成的 2D 陣列（在 VCK190 晶片上有 400 個）。</li>
+<li>本質上更像是一群「極度擅長平行數學運算的微型 DSP，透過晶片內網路互相串接起來的流水線工廠」。</li>
+</ul>
+<img src="./array_acc_mult.png" alt="AIE tile array mapping and routing example" width="700" />
+
+<blockquote>
+<p>這張圖是 AIE compiler / analyzer 看到的 tile array 視角：背景格子代表整片 AIE tile 陣列；彩色區塊與連線代表本設計實際 mapping 到的 kernel tile 與 stream route。換句話說，不是所有 tiles 都被用到，只有被 graph placement / routing 標出的區域參與這個 FFT dataflow。</p>
+</blockquote>
+
+<!-- ===== B2: AIE Tile 陣列互動圖 ===== -->
+<div class="tile-array" id="tile-array-interactive" aria-label="本專案 AIE Tile 配置互動圖">
+  <h4>本專案 Tile 配置（互動版）</h4>
+  <p class="tile-hint">50 cols × 8 rows = 400 tiles。Col FFT 用 4×3 共 12 個 tile，Row FFT 用 4×2 共 8 個 tile，其餘空閒。把游標移到任一格看詳細。</p>
+  <div class="tile-grid" id="tile-grid"></div>
+  <div class="tile-legend">
+    <span><span class="swatch col"></span>Col FFT tiles (col 24–27, row 0–2)</span>
+    <span><span class="swatch row"></span>Row FFT tiles (col 24–27, row 3–4)</span>
+    <span><span class="swatch unused"></span>未使用的 tile</span>
+    <span id="tile-info" style="margin-left:auto; color: var(--fg); font-weight: 500;">&nbsp;</span>
+  </div>
+</div>
+<p><strong>2. 適合 vs 不適合做什麼？</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>適合</th>
+<th>不適合</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>FFT / FIR / 矩陣乘法</td>
+<td>高度控制流程的運算</td>
+</tr>
+<tr class="even">
+<td>CNN 推理 (卷積、ReLU)</td>
+<td>不規則記憶體存取</td>
+</tr>
+<tr class="odd">
+<td>波束成形 (Beamforming)、雷達訊號處理</td>
+<td>需要作業系統、系統呼叫</td>
+</tr>
+<tr class="even">
+<td>任何串流 + 向量化的 DSP</td>
+<td>單一且不連續的快速運算</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3. AIE 的程式模型</strong> 主要分為兩層概念：</p>
+<ul>
+<li><strong>Kernel (C++)</strong>：在單一 tile 上執行的計算函式（例如：做一次 1024-pt FFT）。</li>
+<li><strong>Graph (ADF API)</strong>：將多個 kernel 用資料流 (stream) 連接起來的 Dataflow 拓樸圖。</li>
+</ul>
+<blockquote>
+<p><em>(註：開發完成後，AIE Compiler 會自動將 kernel 映射到實體的 tile、規劃硬體繞線、產出 ELF 執行檔，並處理與 PL/PS 的介面對接。)</em></p>
+</blockquote>
+<hr />
+<h2 id="3-異質運算架構pspl-與-aie-的完美分工">3. 異質運算架構：PS、PL 與 AIE 的完美分工</h2>
+
+
+<!-- ===== 可點擊互動式資料流圖（iframe to dataflow.html） ===== -->
+<section class="dataflow-embed" aria-label="互動式 2D FFT 資料流圖（可點擊）">
+  <iframe src="./dataflow.html" title="互動式 2D FFT 資料流圖" loading="lazy"></iframe>
+</section>
+
+<noscript>
+  <img src="./dataflow.svg" alt="2D FFT dataflow static diagram" width="900" />
+</noscript>
+
+<blockquote>
+<p>點任一區塊看該步驟的詳細說明；底部終端機顯示對應步驟的解釋。鍵盤 <code>←</code> <code>→</code> 切換步驟、<code>空白鍵</code> Play All、<code>Esc</code> Reset。</p>
+</blockquote>
+<h3 id="31-三層各司其職以-2d-fft-專案為例">3.1 三層各司其職：以 2D FFT 專案為例</h3>
+<p>在這個 2D FFT 的案例中，清楚展示了 PS、PL 與 AIE 是如何完美分工的。點下方任一層查看其在本案例中的具體角色：</p>
+
+<!-- ===== A5: 互動式 PS/PL/AIE 三層圖 ===== -->
+<section class="layer-explorer" aria-label="PS / PL / AIE 三層互動圖">
+  <div class="layer-blocks" role="tablist">
+    <button class="layer-block active" data-layer="ps" role="tab" aria-selected="true">
+      <span class="layer-icon">PS</span>
+      <span class="layer-meta">
+        <span class="layer-name">Processing System</span>
+        <span class="layer-role">指揮中心</span>
+      </span>
+    </button>
+    <button class="layer-block" data-layer="pl" role="tab" aria-selected="false">
+      <span class="layer-icon">PL</span>
+      <span class="layer-meta">
+        <span class="layer-name">Programmable Logic</span>
+        <span class="layer-role">搬運專員</span>
+      </span>
+    </button>
+    <button class="layer-block" data-layer="aie" role="tab" aria-selected="false">
+      <span class="layer-icon">AIE</span>
+      <span class="layer-meta">
+        <span class="layer-name">AI Engine</span>
+        <span class="layer-role">計算引擎</span>
+      </span>
+    </button>
+    <button class="layer-block" data-layer="sys" role="tab" aria-selected="false">
+      <span class="layer-icon">SYS</span>
+      <span class="layer-meta">
+        <span class="layer-name">黏合層 (System Config)</span>
+        <span class="layer-role">總接線圖</span>
+      </span>
+    </button>
+  </div>
+  <div class="layer-panel" id="layer-panel" role="tabpanel" aria-live="polite">
+    <!-- JS 動態填入 -->
+  </div>
+</section>
+
+<details>
+  <summary>原始角色對照表（備查）</summary>
+<table>
+<thead>
+<tr class="header">
+<th>層級</th>
+<th>角色定位</th>
+<th>主要原始碼檔案</th>
+<th>本案例具體任務與運作流程</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>PS</strong><br>(ARM Cortex-A72 CPU core)</td>
+<td><strong>指揮中心</strong></td>
+<td><a href="../sw/host.cpp">sw/host.cpp</a><br><a href="../sw/aie_control_xrt.cpp">sw/aie_control_xrt.cpp</a></td>
+<td><strong>1.</strong> 啟動 Linux 並執行 host 程式。<br><strong>2.</strong> 從 SD 卡讀入 8 MB 的測試輸入陣列至 DDR。<br><strong>3.</strong> 透過 XRT API 載入 <code>.xclbin</code>。<br><strong>4.</strong> 啟動 AIE Graph，並在迴圈中觸發 PL 的搬運任務。<br><strong>5.</strong> 等待所有 Kernel 算完，將結果存回 SD 卡。</td>
+</tr>
+<tr class="even">
+<td><strong>PL</strong><br>(FPGA)</td>
+<td><strong>搬運專員</strong></td>
+<td><a href="../hls/mm2s.cpp">hls/mm2s.cpp</a><br><a href="../hls/s2mm.cpp">hls/s2mm.cpp</a><br><a href="../hls/fft_strided_mm2s.cpp">hls/fft_strided...</a></td>
+<td><strong>1. mm2s</strong>：從 DDR 抓取 Column 資料，串流給 AIE。<br><strong>2. s2mm</strong>：接住 AIE 算完的 Column 結果，寫回 DDR。<br><strong>3. strided_mm2s</strong>：用跳躍式位址「邊讀邊轉置」，串流給 AIE 做 Row FFT。</td>
+</tr>
+<tr class="odd">
+<td><strong>AIE</strong><br>(運算陣列)</td>
+<td><strong>計算引擎</strong></td>
+<td><a href="../aie/graph.cpp">aie/graph.cpp</a><br><a href="../aie/col_fft_twd_mul_graph.h">aie/col_fft...</a><br><a href="../aie/row_fft_graph.h">aie/row_fft...</a></td>
+<td><strong>1. Col 階段</strong>：收串流資料 → 跑 1024-pt FFT → 乘 Twiddle factor → 丟出串流。<br><strong>2. Row 階段</strong>：收轉置串流 → 跑 1024-pt FFT → 透過 GMIO 直接寫回 DDR。<br><em>(註：Col 與 Row 佔用不同 Tile，可管線化重疊執行)</em></td>
+</tr>
+<tr class="even">
+<td><strong>黏合層</strong><br>(System)</td>
+<td><strong>總接線圖</strong></td>
+<td><a href="../system.cfg">system.cfg</a></td>
+<td>負責宣告「PL 的哪根管子要接到 AIE 的哪個洞」，是異質系統間的連線設定檔。</td>
+</tr>
+</tbody>
+</table>
+</details>
+
+<blockquote>
+<p><strong>一句話速記</strong>：<strong>PS 下命令、PL 搬資料、AIE 算數學</strong>。資料以 DDR 為中心：<code>DDR → PL → AIE → PL → DDR → PL → AIE → DDR</code>，最後 PS 再把 DDR 結果寫回 SD card。</p>
+</blockquote>
+<hr />
+<h2 id="4-實作拆解1024x1024-2d-fft-資料流">4. 實作拆解：1024x1024 2D FFT 資料流</h2>
+<p>本案例使用 Cooley-Tukey 演算法，將 2D FFT 拆解為「行處理 (Column)」與「列處理 (Row)」兩個獨立的 AIE Graph。以下為核心實作細節的快速歸納：</p>
+<table>
+<thead>
+<tr class="header">
+<th>實作面向</th>
+<th>關鍵概念與設定</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>第一階段：Column FFT</strong><br> <code>col_fft_twd_mul_graph.h</code></td>
+<td>收取 PLIO 串流資料，執行 <strong>1024-pt FFT</strong>，隨後乘上 <strong>Twiddle Factor</strong>。計算完畢後經由 PL <code>s2mm</code> 寫回 DDR。</td>
+</tr>
+<tr class="even">
+<td><strong>第二階段：Row FFT</strong><br><code>row_fft_graph.h</code></td>
+<td>讀取轉置後的串流資料，再次執行 <strong>1024-pt FFT</strong>。計算完畢後，直接透過 <strong>GMIO</strong> 寫回 DDR。</td>
+</tr>
+<tr class="odd">
+<td><strong>硬體資源配置</strong><br>Tile Placement</td>
+<td>AIE 為實體的物理陣列，Kernel 擺放位置會直接影響傳輸頻寬。<br>• Col 階段配置於 Tile <code>(24, 0)</code> – <code>(27, 2)</code><br>• Row 階段配置於 Tile <code>(24, 3)</code> – <code>(27, 4)</code></td>
+</tr>
+<tr class="even">
+<td><strong>編譯期優化參數</strong><br><code>sub_fft_par.h</code></td>
+<td>開發者可透過參數微調效能：<br>• <code>N_BATCH_FFT</code>：一次處理多筆資料。<br>• <code>N_PARAL</code>：平行展開多條 Pipeline。</td>
+</tr>
+<tr class="odd">
+<td><strong>流量橋接設計</strong><br>Widget Kernels</td>
+<td>當開出多條 Pipeline (<code>N_PARAL &gt; 1</code>) 時，需使用橋接 Kernel (<code>distributer</code> / <code>collector</code>) 處理資料流的分流與合流。</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>PLIO vs GMIO 介面比較</strong>：兩者皆為 AIE 的資料傳輸標準。</p>
+<ul>
+<li><strong>PLIO</strong>：AIE 與 PL (FPGA) 之間的串流介面，低延遲、適合連續資料傳輸。</li>
+<li><strong>GMIO</strong>：AIE 直接讀寫 DDR 記憶體的介面，頻寬大、適合巨量 Block 存取。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="5-總結與技術心得">5. 總結與技術心得</h2>
+<blockquote>
+<p><strong>本專案為「以 AIE 加速 DSP 演算法」的標準範例</strong>。掌握此專案即可理解：</p>
+<ol>
+<li>Versal 三層 (PS / PL / AIE) 怎麼分工</li>
+<li>AIE kernel 跟 graph 的寫法</li>
+<li>PLIO vs GMIO 兩種介面什麼時候用哪個</li>
+<li>Tile placement、parallelism、batching 這些優化旋鈕怎麼轉</li>
+</ol>
+</blockquote>
+<hr />
+<h2 id="附錄-aai-engine-硬體名詞解釋">附錄 A：AI Engine 硬體名詞解釋</h2>
+<p><strong>AIE 的本質為一個 array of VLIW SIMD vector processors</strong>。以下為相關專有名詞的白話對照表（點開查看）：</p>
+<details>
+<summary>展開硬體名詞對照表（共 25+ 條）</summary>
+<table>
+<thead>
+<tr class="header">
+<th>名詞</th>
+<th>是什麼</th>
+<th>比喻 / 備註</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CPU</strong></td>
+<td>Central Processing Unit，通用處理器</td>
+<td>像家裡的管家，什麼都做但一次一件</td>
+</tr>
+<tr class="even">
+<td><strong>PS</strong></td>
+<td>Processing System，Versal 內的處理系統區塊。</td>
+<td>跑 Linux、執行 host 程式、負責流程控制 / I/O / 調度。</td>
+</tr>
+<tr class="odd">
+<td><strong>ARM</strong></td>
+<td>CPU 架構與 IP 設計公司。</td>
+<td>ARM 設計 CPU core，AMD/Xilinx 把 ARM core 整合進 Versal PS。</td>
+</tr>
+<tr class="even">
+<td><strong>ARM Cortex-A72 CPU core</strong></td>
+<td>ARM 公司設計的 64-bit 應用級 CPU 核心。Versal <strong>PS</strong> 運行 Linux 就是用這顆。</td>
+<td>它不是 PS 的名稱，而是 PS 裡面的 CPU core。</td>
+</tr>
+<tr class="odd">
+<td><strong>SIMD</strong></td>
+<td>Single Instruction, Multiple Data — 一條指令同時對多筆資料運算</td>
+<td>「一聲令下，全班同時做伏地挺身」</td>
+</tr>
+<tr class="even">
+<td><strong>VLIW</strong></td>
+<td>Very Long Instruction Word — 一條指令封裝多個運算 slot 同時下發，靠 compiler 安排併行</td>
+<td>「一張菜單同時點好幾道菜」</td>
+</tr>
+<tr class="odd">
+<td><strong>DSP</strong></td>
+<td>Digital Signal Processor / Processing — 數位訊號處理</td>
+<td>專門處理數學運算與訊號轉換的技術或硬體</td>
+</tr>
+<tr class="even">
+<td><strong>FFT</strong></td>
+<td>Fast Fourier Transform — 快速傅立葉轉換</td>
+<td>頻譜分析的核心演算法，本專案的應用主體</td>
+</tr>
+<tr class="odd">
+<td><strong>MAC</strong></td>
+<td>Multiply-Accumulate — 乘加運算</td>
+<td>DSP 效能的核心衡量指標，AIE 單一週期可執行大量 MAC</td>
+</tr>
+<tr class="even">
+<td><strong>XRT</strong></td>
+<td>Xilinx Runtime，運行在 PS/Linux 上的軟體 API / runtime。</td>
+<td>讓 <code>host.cpp</code> 可以載入 <code>.xclbin</code>、建立 DDR buffer、啟動 PL kernel / AIE graph、等待硬體完成。</td>
+</tr>
+<tr class="odd">
+<td><strong>HLS</strong></td>
+<td>High-Level Synthesis — 高階合成技術</td>
+<td>將 C++ 程式碼直接轉譯為 FPGA 硬體電路的技術</td>
+</tr>
+<tr class="even">
+<td><strong>Vector processor</strong></td>
+<td>把 VLIW + SIMD 結合成的小型處理器，一個 cycle 做大量平行 MAC</td>
+<td>一顆超專業的 DSP</td>
+</tr>
+<tr class="odd">
+<td><strong>Vector processor array</strong></td>
+<td>上述 vector processor 複製幾百顆排成 2D grid，相鄰可直接串流通訊</td>
+<td>一整個工廠流水線</td>
+</tr>
+<tr class="even">
+<td><strong>AIE tile</strong></td>
+<td>array 裡的「一格」= 一顆 vector processor + 周邊（往下展開）</td>
+<td>工廠裡的一個工位</td>
+</tr>
+<tr class="odd">
+<td>├ <strong>Vector unit</strong></td>
+<td>tile 內做 SIMD 平行運算的部分，1 cycle 可做多個 MAC</td>
+<td>工位的雙手，一次抓很多顆</td>
+</tr>
+<tr class="even">
+<td>├ <strong>Scalar unit</strong></td>
+<td>tile 內處理 control flow（if / loop / 分支）的部分</td>
+<td>工位的腦袋，做判斷</td>
+</tr>
+<tr class="odd">
+<td>├ <strong>Local memory</strong></td>
+<td>tile 內 32 KB SRAM，極低延遲（單 cycle 存取）</td>
+<td>工位旁邊的小櫃子</td>
+</tr>
+<tr class="even">
+<td>├ <strong>DMA engine</strong></td>
+<td>tile 內負責搬資料到鄰居 tile / PL / DDR 的硬體單元</td>
+<td>工位的機械搬運手臂</td>
+</tr>
+<tr class="odd">
+<td>└ <strong>Cascade interface</strong></td>
+<td>直接把運算結果送隔壁 tile，不經 memory</td>
+<td>工位之間的傳送帶</td>
+</tr>
+<tr class="even">
+<td><strong>mm2s</strong></td>
+<td>Memory-Mapped → Stream</td>
+<td>PL 專用詞：指從 DDR (AXI-MM) 讀資料，轉成 AXI-Stream 餵給 AIE</td>
+</tr>
+<tr class="odd">
+<td><strong>s2mm</strong></td>
+<td>Stream → Memory-Mapped</td>
+<td>PL 專用詞：從 AIE 收取 AXI-Stream，轉成 AXI-MM 寫回 DDR</td>
+</tr>
+<tr class="even">
+<td><strong>AXI-MM</strong></td>
+<td>AXI Memory-Mapped</td>
+<td>有記憶體位址的隨機存取介面（主要用來接 DDR）</td>
+</tr>
+<tr class="odd">
+<td><strong>AXI-Stream</strong></td>
+<td>AXI Stream</td>
+<td>無位址的純資料流介面（主要用來接 AIE 或 PL 內部流水線）</td>
+</tr>
+<tr class="even">
+<td><strong>datamover</strong></td>
+<td>PL 內的資料搬運 kernel（如 mm2s、s2mm）。</td>
+<td>負責在 DDR 與 AIE 之間搬運資料，或在 DDR 內做轉置式存取。</td>
+</tr>
+<tr class="odd">
+<td><strong>Twiddle factor</strong></td>
+<td>FFT 演算法中用於調整頻率成分的複數係數。</td>
+<td>在 column FFT 階段乘上 twiddle factor 是 Cooley-Tukey 演算法的標準步驟，幫助完成 2D FFT 的正確計算。</td>
+</tr>
+<tr class="even">
+<td><strong>PLIO</strong></td>
+<td>PL ↔︎ AIE 的串流介面。</td>
+<td>用於 PL 與 AIE 之間的資料傳輸，適合連續、低延遲的資料流動。</td>
+</tr>
+<tr class="odd">
+<td><strong>GMIO</strong></td>
+<td>AIE ↔︎ DDR 的介面。</td>
+<td>讓 AIE 可以直接讀寫 DDR 記憶體，提供高頻寬的資料存取能力。</td>
+</tr>
+<tr class="even">
+<td><strong>strided</strong></td>
+<td>一種存取模式，指在記憶體中以固定間隔讀寫資料。</td>
+<td>在本專案中用於從 DDR 讀取轉置後的資料，讓 AIE 可以直接處理 row FFT 的輸入。</td>
+</tr>
+</tbody>
+</table>
+</details>
+<hr />
+<h2 id="附錄-b專案檔案與資料夾速查">附錄 B：專案檔案與資料夾速查</h2>
+
+<!-- ===== B3: 檔案速查搜尋框 ===== -->
+<div class="file-search" id="file-search-box" data-search-scope="appendix-b">
+  <input type="search" id="file-search-input" placeholder="🔍 在附錄 B 所有表格內搜尋（檔名 / 路徑 / 用途）… 按 ESC 清空" autocomplete="off"/>
+  <span class="file-count" id="file-search-count">&nbsp;</span>
+</div>
+
+<h3 id="b1-關鍵檔案路徑">B.1 關鍵檔案路徑</h3>
+<table>
+<thead>
+<tr class="header">
+<th>角色</th>
+<th>路徑</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>專案總入口</td>
+<td><a href="../Makefile">Makefile</a>, <a href="../system.cfg">system.cfg</a></td>
+</tr>
+<tr class="even">
+<td>AIE 頂層 graph 實例化</td>
+<td><a href="../aie/graph.cpp">aie/graph.cpp</a></td>
+</tr>
+<tr class="odd">
+<td>AIE column graph 定義</td>
+<td><a href="../aie/col_fft_twd_mul_graph.h">aie/col_fft_twd_mul_graph.h</a></td>
+</tr>
+<tr class="even">
+<td>AIE row graph 定義</td>
+<td><a href="../aie/row_fft_graph.h">aie/row_fft_graph.h</a></td>
+</tr>
+<tr class="odd">
+<td>AIE 編譯期參數</td>
+<td><a href="../aie/sub_fft_par.h">aie/sub_fft_par.h</a></td>
+</tr>
+<tr class="even">
+<td>AIE tile placement</td>
+<td><a href="../aie_constraints.json">aie_constraints.json</a></td>
+</tr>
+<tr class="odd">
+<td>PL data movers</td>
+<td><a href="../hls/mm2s.cpp">hls/mm2s.cpp</a>, <a href="../hls/s2mm.cpp">hls/s2mm.cpp</a>, <a href="../hls/fft_strided_mm2s.cpp">hls/fft_strided_mm2s.cpp</a></td>
+</tr>
+<tr class="even">
+<td>PS host 應用</td>
+<td><a href="../sw/host.cpp">sw/host.cpp</a>, <a href="../sw/aie_control_xrt.cpp">sw/aie_control_xrt.cpp</a></td>
+</tr>
+<tr class="odd">
+<td>結果驗證腳本</td>
+<td><a href="../verify/verify_output.py">verify/verify_output.py</a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="b2-資料夾結構">B.2 資料夾結構</h3>
+<table>
+<thead>
+<tr class="header">
+<th>資料夾</th>
+<th>縮寫 / 全名</th>
+<th>用途</th>
+<th>編譯自動產生？</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="../aie/">aie/</a></td>
+<td>AI Engine</td>
+<td>AIE graph + kernel C++ 原始碼</td>
+<td>否（手寫）</td>
+</tr>
+<tr class="even">
+<td><a href="../hls/">hls/</a></td>
+<td>High-Level Synthesis</td>
+<td>PL kernel C++ 原始碼，被 <code>v++</code> 編成 <code>.xo</code></td>
+<td>否（手寫）</td>
+</tr>
+<tr class="odd">
+<td><a href="../sw/">sw/</a></td>
+<td>software</td>
+<td>PS 端 host 應用程式（C++）</td>
+<td>否（手寫）</td>
+</tr>
+<tr class="even">
+<td><a href="../verify/">verify/</a></td>
+<td>—</td>
+<td>Python 驗證腳本 + 測試資料 <code>.npy</code></td>
+<td>否（大 <code>.npy</code> 被 gitignore）</td>
+</tr>
+<tr class="odd">
+<td><a href="../doc/">doc/</a></td>
+<td>documentation</td>
+<td>你的筆記 + 圖（這份檔案就在這）</td>
+<td>否（手寫）</td>
+</tr>
+<tr class="even">
+<td><a href="../imp_result/">imp_result/</a></td>
+<td>implementation result</td>
+<td>跑完 build 後的 utilization / timing 報告</td>
+<td>是（但通常想留著比較）</td>
+</tr>
+<tr class="odd">
+<td><a href="../emu_qemu_scripts/">emu_qemu_scripts/</a></td>
+<td>—</td>
+<td>QEMU 硬體模擬啟動腳本</td>
+<td>是</td>
+</tr>
+<tr class="even">
+<td><a href="../Work/">Work/</a></td>
+<td>—</td>
+<td><strong>AIE compiler</strong> 編譯中間檔（ELF、memmap、routing）</td>
+<td>是</td>
+</tr>
+<tr class="odd">
+<td><code>_x/</code></td>
+<td>—</td>
+<td><strong>v++</strong> 編譯中間檔（HLS、link 階段暫存）</td>
+<td>是</td>
+</tr>
+<tr class="even">
+<td><code>_ide/</code></td>
+<td>—</td>
+<td>Vitis IDE 自動產生的 workspace 設定</td>
+<td>是</td>
+</tr>
+<tr class="odd">
+<td><a href="../cfg/">cfg/</a></td>
+<td>configuration</td>
+<td>工具產生的 metadata</td>
+<td>是</td>
+</tr>
+<tr class="even">
+<td><a href="../sim/">sim/</a></td>
+<td>simulation</td>
+<td>aiesimulator / x86 simulator 輸出</td>
+<td>是</td>
+</tr>
+<tr class="odd">
+<td><a href="../sd_card/">sd_card/</a></td>
+<td>—</td>
+<td>打包 SD card image 前的暫存區</td>
+<td>是</td>
+</tr>
+<tr class="even">
+<td><code>.Xil/</code></td>
+<td>—</td>
+<td>Xilinx 工具的 lock / temp 檔</td>
+<td>是</td>
+</tr>
+<tr class="odd">
+<td><code>.ipcache/</code></td>
+<td>—</td>
+<td>Vivado IP cache</td>
+<td>是</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>快速辨認原則</strong>：開頭有 <code>.</code> 或 <code>_</code>、或名字是 <code>Work</code> / <code>cfg</code> / <code>sim</code> 的，幾乎都是工具產生的暫存目錄，<strong>刪掉重 build 就會回來</strong>。</p>
+</blockquote>
+<h3 id="b3-根目錄產出檔-generated-files">B.3 根目錄產出檔 (Generated Files)</h3>
+<p>按用途分組。<strong>「可清理」標示為 "Y" 者，代表 <code>make</code> 或 <code>git clean</code> 會重新產生，可放心刪除</strong>。</p>
+<h4 id="a-燒板--跑模擬必備的最終產物">A. 燒板 / 跑模擬必備的最終產物</h4>
+<table>
+<thead>
+<tr class="header">
+<th>檔名</th>
+<th>全名 / 意義</th>
+<th>是什麼</th>
+<th>可清理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>a.xclbin</code></td>
+<td>Xilinx Compute Library Binary</td>
+<td><strong>最終要燒到板子上的二進位</strong>，包含 PL bitstream + AIE binary + metadata</td>
+<td>Y (<code>make</code> 會重產)</td>
+</tr>
+<tr class="even">
+<td><code>BOOT.BIN</code></td>
+<td>Boot Image</td>
+<td>Versal 開機 image，把 firmware + bitstream + Linux + rootfs 通通包進來</td>
+<td>Y</td>
+</tr>
+<tr class="odd">
+<td><code>host.exe</code></td>
+<td>—</td>
+<td>PS 端 ARM 執行檔，板子 boot 後執行的就是它</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>sd_card.img</code></td>
+<td>—</td>
+<td><strong>4 GB</strong> 完整 SD card 映像檔，QEMU 模擬時掛載；空間吃很大</td>
+<td>Y (最該定期刪)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="b-build-中間產物流程中經過的階段檔">B. Build 中間產物（流程中經過的階段檔）</h4>
+<table>
+<thead>
+<tr class="header">
+<th>檔名</th>
+<th>全名 / 意義</th>
+<th>是什麼</th>
+<th>可清理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>aie_base_graph_hw.xsa</code> / <code>_hw_emu.xsa</code></td>
+<td>eXtensible Shell Archive</td>
+<td><code>v++ --link</code> 把 AIE+PL 拼起來的產物，丟給 <code>--package</code> 變成 BOOT.BIN</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>libadf.a</code></td>
+<td>Adaptive Data Flow library</td>
+<td>AIE graph 編譯後的靜態 lib，給 <code>v++ --link</code> 用</td>
+<td>Y</td>
+</tr>
+<tr class="odd">
+<td><code>plm.bin</code></td>
+<td>Platform Loader &amp; Manager</td>
+<td>Versal 開機第一級 firmware</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>pmc_cdo.bin</code></td>
+<td>Configuration Data Object</td>
+<td>Versal 開機時配置硬體用的指令序列</td>
+<td>Y</td>
+</tr>
+<tr class="odd">
+<td><code>aie.merged.cdo.bin</code></td>
+<td>AIE Configuration Data Object</td>
+<td>配置 AIE array 用的指令序列</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>BOOT_bh.bin</code> / <code>boot_image.bif</code></td>
+<td>Boot Header / Format</td>
+<td>描述 BOOT.BIN 格式與內容的 spec</td>
+<td>Y</td>
+</tr>
+</tbody>
+</table>
+<h4 id="c-報告--log可選保留">C. 報告 / Log（可選保留）</h4>
+<table>
+<thead>
+<tr class="header">
+<th>檔名</th>
+<th>是什麼</th>
+<th>可清理</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>*.log</code></td>
+<td>各種工具 build / 模擬 log</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>*.link_summary</code> / <code>*.package_summary</code></td>
+<td>v++ 各階段摘要報告</td>
+<td>Y</td>
+</tr>
+<tr class="odd">
+<td><code>Map_Report.csv</code> / <code>sol.db</code></td>
+<td>HLS / scheduling 報告</td>
+<td>Y</td>
+</tr>
+<tr class="even">
+<td><code>launch_hw_emu.sh</code> / <code>qemu_args.txt</code> 等</td>
+<td>QEMU 模擬啟動腳本與參數</td>
+<td>Y</td>
+</tr>
+<tr class="odd">
+<td><code>xilinx_vck190_base_202420_1.wcfg</code></td>
+<td>Vivado / Vitis 模擬器波形設定</td>
+<td>Y</td>
+</tr>
+</tbody>
+</table>
+<h4 id="d-千萬不要刪手寫-source">D. 千萬不要刪（手寫 source）</h4>
+<table>
+<thead>
+<tr class="header">
+<th>檔名</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="../Makefile">Makefile</a></td>
+<td>主控 build 流程</td>
+</tr>
+<tr class="even">
+<td><a href="../system.cfg">system.cfg</a></td>
+<td>PL ↔︎ AIE streaming 連線設定</td>
+</tr>
+<tr class="odd">
+<td><a href="../aie_constraints.json">aie_constraints.json</a></td>
+<td>AIE tile placement</td>
+</tr>
+<tr class="even">
+<td><a href="../README.md">README.md</a></td>
+<td>原專案說明</td>
+</tr>
+<tr class="odd">
+<td><code>.gitignore</code></td>
+<td>git 忽略清單</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="附錄-c編譯流程與清理指南">附錄 C：編譯流程與清理指南</h2>
+<h3 id="c1-編譯流程-makefile-targets">C.1 編譯流程 (Makefile Targets)</h3>
+<p>主控 <a href="../Makefile">Makefile</a> 的主要 targets：</p>
+<table>
+<thead>
+<tr class="header">
+<th>指令</th>
+<th>在做什麼</th>
+<th>產物</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make aie</code></td>
+<td>用 AIE compiler 編 graph</td>
+<td><code>libadf.a</code>、<code>Work/</code></td>
+</tr>
+<tr class="even">
+<td><code>make hls</code></td>
+<td>把 HLS kernel 編成 <code>.xo</code></td>
+<td><code>mm2s.xo</code>、<code>s2mm.xo</code> 等</td>
+</tr>
+<tr class="odd">
+<td><code>make xsa</code></td>
+<td><code>v++ --link</code> 把 AIE + PL 拼起來</td>
+<td><code>.xsa</code> (hardware design archive)</td>
+</tr>
+<tr class="even">
+<td><code>make host</code></td>
+<td>aarch64 cross-compile</td>
+<td><code>host.exe</code> (ARM 執行檔)</td>
+</tr>
+<tr class="odd">
+<td><code>make package</code></td>
+<td>打包成 SD card image</td>
+<td><code>BOOT.BIN</code> + rootfs + xclbin</td>
+</tr>
+<tr class="even">
+<td><code>make aiesim</code></td>
+<td>跑 AIE 模擬器</td>
+<td>驗證 graph 行為</td>
+</tr>
+<tr class="odd">
+<td>Hardware emulation</td>
+<td>QEMU + AIE 模擬</td>
+<td>驗證整個系統行為</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>執行流程</strong>：把 SD card 插到 VCK190 板子 → boot Linux → 跑 <code>./host.exe</code> → 結果寫回 DDR → 拷回主機用 <code>verify_output.py</code> 驗證。</p>
+</blockquote>
+<h3 id="c2-一鍵清理">C.2 一鍵清理</h3>
+<table>
+<thead>
+<tr class="header">
+<th>想清什麼</th>
+<th>指令</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>清掉 Makefile 預設認得的中間檔</td>
+<td><code>make clean</code></td>
+</tr>
+<tr class="even">
+<td>把所有 gitignore 列出的東西全清掉（最徹底）</td>
+<td><code>git clean -fdX</code></td>
+</tr>
+<tr class="odd">
+<td>只查看會被清掉哪些東西、不真的刪</td>
+<td><code>git clean -ndX</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>注意</strong>：<code>git clean -fdX</code> 會把 <code>.gitignore</code> 內所有東西都殺掉，包括 <code>verify/data_rx_1024_complex_64.npy</code>（測試資料 8 MB），請確保您有備份。</p>
+</blockquote>
+<hr />
+<h2 id="附錄-dvck190-板上模組速查">附錄 D：VCK190 板上模組速查</h2>
+<p>以下整理自 2.1 節 VCK190 開發板照片中的標示，重點是快速分辨「這個接頭 / 晶片是做什麼用的」。</p>
+<table>
+<thead>
+<tr class="header">
+<th>圖中名稱</th>
+<th>定義</th>
+<th>主要功能</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Versal XCVC1902-2MSEVSVA2197 Adaptive SoC</strong></td>
+<td>本板的主晶片，屬於 Versal AI Core 系列。</td>
+<td>承載本專案的 PS / PL / AIE 三層異質運算；AIE 加速 FFT，PL 做資料搬運，PS 跑 Linux host 控制流程。</td>
+</tr>
+<tr class="even">
+<td><strong>DDR4 DIMM (8GB)</strong></td>
+<td>插槽式 DDR4 系統記憶體。</td>
+<td>提供 Versal PS / PL / AIE 經由記憶體系統存取的大容量工作區，本專案的輸入、中間結果與輸出都以 DDR 為中心流動。</td>
+</tr>
+<tr class="odd">
+<td><strong>LPDDR4 Component (8GB)</strong></td>
+<td>板上焊接式 LPDDR4 記憶體。</td>
+<td>提供額外高速記憶體資源，適合需要較高 bandwidth 或額外 buffer 的設計。</td>
+</tr>
+<tr class="even">
+<td><strong>System Controller XCZU4EG</strong></td>
+<td>板上管理用 Zynq UltraScale+ MPSoC，不是本專案主要運算晶片。</td>
+<td>負責板級管理，例如電源、時脈、感測、狀態監控、韌體管理與部分設定控制。</td>
+</tr>
+<tr class="odd">
+<td><strong>Ethernet (SysCont)</strong></td>
+<td>連到 System Controller 的乙太網路埠。</td>
+<td>用於板級管理、遠端監控或 system controller 韌體 / 設定相關操作。</td>
+</tr>
+<tr class="even">
+<td><strong>MicroSD (SysCont)</strong></td>
+<td>給 System Controller 使用的 microSD 卡槽。</td>
+<td>存放或更新 system controller 相關啟動映像、韌體或管理資料。</td>
+</tr>
+<tr class="odd">
+<td><strong>MicroSD (Versal)</strong></td>
+<td>給 Versal 主 SoC 使用的 microSD 卡槽。</td>
+<td>作為 Versal PS 的開機 / 儲存媒體；常放 BOOT.BIN、Linux、rootfs、xclbin、host.exe 與測試資料。</td>
+</tr>
+<tr class="even">
+<td><strong>PCIe Gen4 x8</strong></td>
+<td>PCI Express Gen4、8 lane 高速介面。</td>
+<td>讓 VCK190 可作為 PCIe endpoint / 加速卡連到主機，適合主機與 Versal 間的高速資料傳輸。</td>
+</tr>
+<tr class="odd">
+<td><strong>FMC (2x)</strong></td>
+<td>FPGA Mezzanine Card 擴充連接器，共兩組。</td>
+<td>外接 ADC / DAC、感測器、射頻板或自訂 I/O mezzanine card，擴充 PL 可接的高速或一般 I/O。</td>
+</tr>
+<tr class="even">
+<td><strong>QSFP28</strong></td>
+<td>Quad Small Form-factor Pluggable 28G 高速光電模組介面。</td>
+<td>常用於 100G Ethernet 或其他高速 serial link 測試。</td>
+</tr>
+<tr class="odd">
+<td><strong>SFP28 (2x)</strong></td>
+<td>Small Form-factor Pluggable 28G 高速光電模組介面，共兩組。</td>
+<td>常用於 10G / 25G Ethernet 或高速 serial transceiver 測試。</td>
+</tr>
+<tr class="even">
+<td><strong>Ethernet (2x)</strong></td>
+<td>連到主系統的雙乙太網路埠。</td>
+<td>提供 Versal 系統一般網路連線，可用於 Linux networking、資料傳輸或應用層通訊。</td>
+</tr>
+<tr class="odd">
+<td><strong>HDMI</strong></td>
+<td>影像輸出 / 輸入相關介面。</td>
+<td>可用於顯示、影像 pipeline 或 multimedia demo；本 2D FFT 範例通常不會用到。</td>
+</tr>
+<tr class="even">
+<td><strong>HSDP / JTAG / UART (USB Type-C)</strong></td>
+<td>Debug 與主控 console 介面，使用 USB Type-C 實體接頭。</td>
+<td>用於 JTAG download / debug、UART console、硬體 bring-up 與開發時觀察 PS/Linux 訊息。</td>
+</tr>
+<tr class="odd">
+<td><strong>Boot Module Connector</strong></td>
+<td>可接 boot module 的板上連接器。</td>
+<td>提供開機模式、設定或板級啟動相關擴充；通常用於開發板 boot / configuration 流程。</td>
+</tr>
+<tr class="even">
+<td><strong>Power Switch</strong></td>
+<td>開發板電源開關。</td>
+<td>控制整張 VCK190 開發板上電 / 斷電。</td>
+</tr>
+</tbody>
+</table>
+  </main>
+</div>
+
+
+<!-- Tooltip element shared by A1 glossary -->
+<div class="term-tooltip" id="term-tooltip" role="tooltip"></div>
+
+<script>
+  const root = document.documentElement;
+  const darkBtn = document.getElementById('toggle-dark');
+  const hljsLight = document.getElementById('hljs-light');
+  const hljsDark  = document.getElementById('hljs-dark');
+
+  // === Dark mode ===
+  function applyTheme(isDark) {
+    root.classList.toggle('dark', isDark);
+    if (hljsLight) hljsLight.disabled = isDark;
+    if (hljsDark)  hljsDark.disabled  = !isDark;
+    darkBtn.textContent = isDark ? 'Light' : 'Dark';
+  }
+  const savedTheme = localStorage.getItem('notes-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(savedTheme === 'dark' || (!savedTheme && prefersDark));
+
+  darkBtn.addEventListener('click', () => {
+    const next = !root.classList.contains('dark');
+    applyTheme(next);
+    localStorage.setItem('notes-theme', next ? 'dark' : 'light');
+    initMermaid();
+  });
+
+  // === Mermaid (no-op when no .mermaid blocks) ===
+  function initMermaid() {
+    if (!window.mermaid) return;
+    const blocks = document.querySelectorAll('.mermaid');
+    if (!blocks.length) return;
+    const isDark = root.classList.contains('dark');
+    blocks.forEach(el => {
+      if (!el.dataset.src) el.dataset.src = el.textContent;
+      el.removeAttribute('data-processed');
+      el.innerHTML = el.dataset.src;
+    });
+    mermaid.initialize({ startOnLoad: false, theme: isDark ? 'dark' : 'default', flowchart: { htmlLabels: true, curve: 'basis' } });
+    mermaid.run({ querySelector: '.mermaid' });
+  }
+  initMermaid();
+
+  // === Syntax highlighting ===
+  if (window.hljs) {
+    document.querySelectorAll('pre code').forEach(el => {
+      try { hljs.highlightElement(el); } catch (e) {}
+    });
+  }
+
+  // === Copy button on pre ===
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText);
+      btn.textContent = 'copied';
+      setTimeout(() => btn.textContent = 'copy', 1200);
+    });
+    pre.appendChild(btn);
+  });
+
+  // === A2 進度條 ===
+  const progress = document.getElementById('read-progress');
+  function updateProgress() {
+    const h = document.documentElement;
+    const total = h.scrollHeight - h.clientHeight;
+    progress.style.width = total > 0 ? (h.scrollTop / total * 100) + '%' : '0%';
+  }
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  window.addEventListener('resize', updateProgress);
+  updateProgress();
+
+  // === TOC active section highlight + smooth scroll ===
+  const tocLinks = document.querySelectorAll('nav.toc a');
+  const tocSections = [...tocLinks].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function setActive() {
+    if (!tocSections.length) return;
+    let current = tocSections[0];
+    for (const s of tocSections) {
+      if (s.getBoundingClientRect().top < 100) current = s;
+    }
+    tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current.id));
+  }
+  window.addEventListener('scroll', setActive, { passive: true });
+  setActive();
+  tocLinks.forEach(a => {
+    a.addEventListener('click', e => {
+      const tgt = document.querySelector(a.getAttribute('href'));
+      if (tgt) { e.preventDefault(); tgt.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+
+  // === A1 詞彙懸停提示 ===
+  (function () {
+    const glossary = window.GLOSSARY || {};
+    const terms = Object.keys(glossary);
+    if (!terms.length) return;
+
+    // 由長到短排序，避免 "AI Engine" 被 "AIE" 切走
+    terms.sort((a, b) => b.length - a.length);
+
+    // 把 main 內的純文字節點掃過一次，第一次出現的 term 包成 <span class="term">
+    const seen = new Set();
+    const skipTags = new Set(['CODE','PRE','SCRIPT','STYLE','A','SUMMARY','BUTTON','OPTION','TEXTAREA','INPUT','SVG']);
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+
+    function walk(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const txt = node.nodeValue;
+        if (!txt || !txt.trim()) return;
+        for (const t of terms) {
+          if (seen.has(t)) continue;
+          const i = txt.indexOf(t);
+          if (i < 0) continue;
+          // 確認前後不是字母/數字（避免 'AIE' 切到 'AIEarch'）
+          const before = i > 0 ? txt[i-1] : '';
+          const after  = i+t.length < txt.length ? txt[i+t.length] : '';
+          const isWordChar = c => /[A-Za-z0-9_]/.test(c);
+          // 英文 term 才檢查字界；中文/混合就放寬
+          if (/^[A-Za-z]/.test(t) && (isWordChar(before) || isWordChar(after))) continue;
+          // 拆 text node
+          const span = document.createElement('span');
+          span.className = 'term';
+          span.dataset.term = t;
+          span.textContent = t;
+          const before_node = document.createTextNode(txt.slice(0, i));
+          const after_node  = document.createTextNode(txt.slice(i+t.length));
+          const parent = node.parentNode;
+          parent.insertBefore(before_node, node);
+          parent.insertBefore(span, node);
+          parent.insertBefore(after_node, node);
+          parent.removeChild(node);
+          seen.add(t);
+          // 繼續處理 after_node（可能還有其他 term）
+          walk(after_node);
+          return;
+        }
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (skipTags.has(node.tagName)) return;
+      // 已經是 .term 或詞彙表內部不處理
+      if (node.classList && (node.classList.contains('term') || node.classList.contains('glossary-table'))) return;
+      // copy 子節點 list 再 iterate，因為過程會修改 DOM
+      const children = [...node.childNodes];
+      for (const c of children) walk(c);
+    }
+    walk(mainEl);
+
+    // tooltip
+    const tip = document.getElementById('term-tooltip');
+    function showTip(target) {
+      const t = target.dataset.term;
+      const def = glossary[t];
+      if (!def) return;
+      tip.innerHTML = '<strong>' + t + '</strong>' + def;
+      tip.classList.add('visible');
+      const r = target.getBoundingClientRect();
+      // 嘗試放在下方，超出視窗就放上方
+      tip.style.left = Math.max(8, Math.min(window.innerWidth - 380, r.left)) + 'px';
+      let top = r.bottom + 6;
+      tip.style.top = top + 'px';
+      const tipRect = tip.getBoundingClientRect();
+      if (tipRect.bottom > window.innerHeight - 8) {
+        tip.style.top = (r.top - tipRect.height - 6) + 'px';
+      }
+    }
+    function hideTip() { tip.classList.remove('visible'); }
+    document.body.addEventListener('mouseover', e => {
+      const t = e.target.closest('.term');
+      if (t) showTip(t);
+    });
+    document.body.addEventListener('mouseout', e => {
+      const t = e.target.closest('.term');
+      if (t) hideTip();
+    });
+    document.body.addEventListener('focusin', e => {
+      const t = e.target.closest('.term');
+      if (t) showTip(t);
+    });
+    document.body.addEventListener('focusout', e => {
+      const t = e.target.closest('.term');
+      if (t) hideTip();
+    });
+  })();
+</script>
+
+<!-- ===== v2 專用 JS：A5 / B2 / B3 ===== -->
+<script>
+  // ===== A5 互動式 PS/PL/AIE 三層圖 =====
+  (function () {
+    const LAYERS = {
+      ps: {
+        name: 'Processing System (PS)',
+        role: '指揮中心',
+        full: 'ARM Cortex-A72 CPU core，跑 Linux',
+        tasks: [
+          '啟動 Linux 並執行 host 程式',
+          '從 SD 卡讀入 8 MB 測試輸入陣列至 DDR',
+          '透過 XRT API 載入 .xclbin',
+          '啟動 AIE Graph，於迴圈中觸發 PL 搬運任務',
+          '等待所有 Kernel 算完，將結果存回 SD 卡',
+        ],
+        files: [
+          { name: 'sw/host.cpp', href: '../sw/host.cpp' },
+          { name: 'sw/aie_control_xrt.cpp', href: '../sw/aie_control_xrt.cpp' },
+        ],
+      },
+      pl: {
+        name: 'Programmable Logic (PL)',
+        role: '搬運專員',
+        full: 'FPGA fabric，做高速資料搬運',
+        tasks: [
+          'mm2s：從 DDR 抓取 Column 資料，串流給 AIE',
+          's2mm：接住 AIE 算完的 Column 結果，寫回 DDR',
+          'strided_mm2s：用跳躍式位址「邊讀邊轉置」，串流給 AIE 做 Row FFT',
+        ],
+        files: [
+          { name: 'hls/mm2s.cpp', href: '../hls/mm2s.cpp' },
+          { name: 'hls/s2mm.cpp', href: '../hls/s2mm.cpp' },
+          { name: 'hls/fft_strided_mm2s.cpp', href: '../hls/fft_strided_mm2s.cpp' },
+        ],
+      },
+      aie: {
+        name: 'AI Engine (AIE)',
+        role: '計算引擎',
+        full: 'VLIW SIMD vector processor array — 400 個 tile 的 2D 陣列',
+        tasks: [
+          'Col 階段：收串流 → 跑 1024-pt FFT → 乘 Twiddle factor → 丟串流',
+          'Row 階段：收轉置串流 → 跑 1024-pt FFT → 透過 GMIO 直接寫回 DDR',
+          'Col 與 Row 佔用不同 Tile，可管線化重疊執行',
+        ],
+        files: [
+          { name: 'aie/graph.cpp', href: '../aie/graph.cpp' },
+          { name: 'aie/col_fft_twd_mul_graph.h', href: '../aie/col_fft_twd_mul_graph.h' },
+          { name: 'aie/row_fft_graph.h', href: '../aie/row_fft_graph.h' },
+        ],
+      },
+      sys: {
+        name: '黏合層 (System Config)',
+        role: '總接線圖',
+        full: '異質系統之間的連線設定檔',
+        tasks: [
+          '宣告 PL 哪根管子要接到 AIE 哪個 PLIO',
+          '指定 AIE graph 端 port 對應的 PL kernel port',
+        ],
+        files: [
+          { name: 'system.cfg', href: '../system.cfg' },
+          { name: 'aie_constraints.json', href: '../aie_constraints.json' },
+        ],
+      },
+    };
+
+    const panel = document.getElementById('layer-panel');
+    const blocks = document.querySelectorAll('.layer-block');
+    if (!panel || !blocks.length) return;
+
+    function render(layer) {
+      const d = LAYERS[layer];
+      if (!d) return;
+      const filesHtml = d.files.map(f => `<a href="${f.href}"><code>${f.name}</code></a>`).join('，');
+      const tasksHtml = d.tasks.map(t => `<li>${t}</li>`).join('');
+      panel.innerHTML =
+        `<h4>${d.name}</h4>` +
+        `<span class="panel-role">${d.role}</span>` +
+        `<div class="panel-full" style="color: var(--muted); font-size: 13px; margin-bottom: 8px;">${d.full}</div>` +
+        `<div style="font-weight: 600; font-size: 13px; margin-top: 8px;">在 2D FFT 案例中：</div>` +
+        `<ol>${tasksHtml}</ol>` +
+        `<div class="panel-files"><span class="label">原始碼：</span>${filesHtml}</div>`;
+      blocks.forEach(b => {
+        const active = b.dataset.layer === layer;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    }
+
+    blocks.forEach(b => {
+      b.addEventListener('click', () => render(b.dataset.layer));
+      b.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const next = b.nextElementSibling || blocks[0];
+          next.focus(); next.click();
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const prev = b.previousElementSibling || blocks[blocks.length - 1];
+          prev.focus(); prev.click();
+        }
+      });
+    });
+    render('ps');
+  })();
+
+  // ===== B2 AIE Tile 陣列產生 =====
+  (function () {
+    const grid = document.getElementById('tile-grid');
+    const info = document.getElementById('tile-info');
+    if (!grid) return;
+
+    const COLS = 50, ROWS = 8;
+    const colFftCols = [24, 25, 26, 27];
+    const colFftRows = [0, 1, 2];
+    const rowFftCols = [24, 25, 26, 27];
+    const rowFftRows = [3, 4];
+
+    // 由上到下顯示 row 0 ~ row 7
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = document.createElement('div');
+        t.className = 'tile';
+        t.dataset.col = c;
+        t.dataset.row = r;
+        let label = '未使用';
+        if (colFftCols.includes(c) && colFftRows.includes(r)) {
+          t.classList.add('col-fft');
+          label = 'Col FFT tile';
+        } else if (rowFftCols.includes(c) && rowFftRows.includes(r)) {
+          t.classList.add('row-fft');
+          label = 'Row FFT tile';
+        }
+        t.title = `tile (${c}, ${r}) — ${label}`;
+        t.addEventListener('mouseenter', () => {
+          info.textContent = `tile (${c}, ${r}) — ${label}`;
+        });
+        t.addEventListener('mouseleave', () => { info.innerHTML = '&nbsp;'; });
+        grid.appendChild(t);
+      }
+    }
+  })();
+
+  // ===== B3 檔案搜尋 =====
+  (function () {
+    const input = document.getElementById('file-search-input');
+    const count = document.getElementById('file-search-count');
+    if (!input) return;
+
+    // 範圍：附錄 B 的三個 h3 區段內所有 table 的 tbody tr
+    const startH = document.getElementById('附錄-b專案檔案與資料夾速查');
+    if (!startH) return;
+    // 取附錄 B 到下一個 h2 之間的所有 tr
+    function collectRows() {
+      const rows = [];
+      let el = startH.nextElementSibling;
+      while (el && el.tagName !== 'H2') {
+        el.querySelectorAll && el.querySelectorAll('tbody tr').forEach(tr => rows.push(tr));
+        el = el.nextElementSibling;
+      }
+      return rows;
+    }
+    const rows = collectRows();
+    const totalText = `共 ${rows.length} 筆`;
+    count.textContent = totalText;
+
+    function applyFilter(q) {
+      q = q.trim().toLowerCase();
+      if (!q) {
+        rows.forEach(tr => tr.classList.remove('search-hidden'));
+        count.textContent = totalText;
+        return;
+      }
+      let hit = 0;
+      rows.forEach(tr => {
+        const txt = tr.textContent.toLowerCase();
+        const match = txt.includes(q);
+        tr.classList.toggle('search-hidden', !match);
+        if (match) hit++;
+      });
+      count.textContent = `命中 ${hit} / ${rows.length}`;
+    }
+
+    input.addEventListener('input', e => applyFilter(e.target.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.target.value = ''; applyFilter(''); }
+    });
+  })();
+</script>
+
+</body>
+</html>

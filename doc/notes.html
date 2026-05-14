@@ -232,22 +232,19 @@
 
   <main>
     <h1>vitis-rda-versal 專案 High-level 講解</h1>
+
+    <h2 id="summary">0. Summary</h2>
     <ul>
-      <li><b>時長</b>：~10 分鐘</li>
-      <li><b>報告對象</b>：對 AMD/Xilinx Versal 晶片家族無先備知識之同仁。</li>
+      <li><b>閱讀時間</b>：10 分鐘</li>
+      <li><b>報告目的</b>：AMD/Xilinx Versal 簡介。本文件旨在快速（約 10 分鐘）建立團隊對 <code>vitis-rda-versal</code> 專案的 High-level 認知。重點將解構 AI Engine (AIE) 之運作原理，並釐清處理系統 (PS)、可程式化邏輯 (PL) 與 AIE 間的軟硬體協作機制。</li>
       <li><b>重點</b>：
         <ol>
           <li>AI Engine 是什麼</li>
           <li>AIE 應用案例探討 (以 2D FFT 為例)</li>
-          <li>PS / PL / AIE 三層分工</li>
+          <li>Processing System (PS) / Programmable Logic (PL) / AI Engine (AIE) 三層分工</li>
+          <li>AIE 的運算模型與實務應用。系統中的 PS 與 PL 模組將僅針對其與 AIE 的介面銜接（如資料流控制、記憶體搬運）進行輔助性探討，不展開底層暫存器或韌體細節。</li>
         </ol>
       </li>
-    </ul>
-
-    <h2 id="summary">0. 執行摘要 (Executive Summary)</h2>
-    <ul>
-      <li><b>文件目的</b>：本文件旨在快速（約 10 分鐘）建立團隊對 <code>vitis-rda-versal</code> 專案的 High-level 認知。重點將解構 AI Engine (AIE) 之運作原理，並釐清處理系統 (PS)、可程式化邏輯 (PL) 與 AIE 間的軟硬體協作機制。</li>
-      <li><b>內容範疇</b>：本文件之探討核心為 <b>AI Engine (AIE)</b> 的運算模型與實務應用。系統中的 PS 與 PL 模組將僅針對其與 AIE 的介面銜接（如資料流控制、記憶體搬運）進行輔助性探討，不展開底層暫存器或韌體細節。</li>
     </ul>
 
     <h2 id="case">1. 應用案例先導：為何需要 AI Engine？</h2>
@@ -292,7 +289,7 @@
         <tr><td><b>AI Engine</b></td><td><b>AIE</b></td><td>VLIW SIMD vector processor array</td><td>高吞吐、規律性、可向量化的運算</td></tr>
       </tbody>
     </table>
-    <img class="concept-svg" src="./versal-acap.svg" alt="Versal ACAP PS PL AIE diagram" />
+    <img class="concept-svg" src="./versal-acap.svg" alt="Versal ACAP PS PL AIE diagram" style="max-width:700px"/>
 
     <h3 id="aie">2.3 深入理解 AI Engine</h3>
     <p><b>1. AIE 到底是什麼？</b></p>
@@ -300,7 +297,7 @@
       <li>是一個由數百個微型計算單元 (Tiles) 構成的 2D 陣列（在 VCK190 晶片上有 400 個）。</li>
       <li>本質上更像是一群「極度擅長平行數學運算的微型 DSP，透過晶片內網路互相串接起來的流水線工廠」。</li>
     </ul>
-    <img class="diagram" src="./aie-tiles.png" alt="AIE tile array mapping and routing example" style="max-width:700px" />
+    <img class="diagram" src="./array_acc_mult.png" alt="AIE tile array mapping and routing example" style="max-width:1000px" />
     <blockquote>
       <p>這張圖是 AIE compiler / analyzer 看到的 tile array 視角：背景格子代表整片 AIE tile 陣列；彩色區塊與連線代表本設計實際 mapping 到的 kernel tile 與 stream route。換句話說，不是所有 tiles 都被用到，只有被 graph placement / routing 標出的區域參與這個 FFT dataflow。</p>
     </blockquote>

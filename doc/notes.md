@@ -73,7 +73,7 @@ AI Engine 具備極強的平行運算能力，非常適合處理高吞吐量的�
 - 是一個由數百個微型計算單元 (Tiles) 構成的 2D 陣列（在 VCK190 晶片上有 400 個）。
 - 本質上更像是一群「極度擅長平行數學運算的微型 DSP，透過晶片內網路互相串接起來的流水線工廠」。
 
-<img src="./aie-tiles.png" alt="AIE tile array mapping and routing example" width="700" />
+<img src="./array_acc_mult.png" alt="AIE tile array mapping and routing example" width="700" />
 
 > 這張圖是 AIE compiler / analyzer 看到的 tile array 視角：背景格子代表整片 AIE tile 陣列；彩色區塊與連線代表本設計實際 mapping 到的 kernel tile 與 stream route。換句話說，不是所有 tiles 都被用到，只有被 graph placement / routing 標出的區域參與這個 FFT dataflow。
 
