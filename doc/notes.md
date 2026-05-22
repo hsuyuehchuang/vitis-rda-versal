@@ -100,6 +100,31 @@
 
 ---
 
+### 1.4 釐清：PL 真的只是「搬運工」嗎？
+
+前面把 PL 定位成「搬運專員」，是為了**對比 AIE 的大量演算法級數學運算**而做的簡化講法。在硬體層面，PL 絕對有在做運算 —— 只是它算的不是 FFT 蝶形那種「演算法層」運算，而是「**控制與位址層**」的邏輯運算。
+
+**PL fabric 的三大物理構成**
+
+| 元件 | 全名 | 在做什麼 |
+|---|---|---|
+| **LUT** | Look-Up Table | 執行所有客製化的布林邏輯運算 (AND/OR/加法等)，是 FPGA 的「運算大腦」 |
+| **FF** | Flip-Flop (正反器) | 在每個 clock cycle 記憶狀態，構成時序電路與狀態機 |
+| **BRAM + DSP Slice + Routing** | Block RAM、DSP Slice、繞線資源 | BRAM 是硬化的區塊記憶體；DSP Slice 是專門做乘加運算的硬化單元；Routing 把上述元件串起來 |
+
+**PL 在本專案實際算的東西**
+
+| 運算類別 | 在做什麼 | 對應到本專案哪段 |
+|---|---|---|
+| **位址運算 (Address Computation)** | 用 LUT + 加法器持續算「當前位址 + Stride = 下一個位址」 | `strided_mm2s` 邊讀邊轉置時，硬體要不斷算 `j * SUB_FFT_SIZE + i` 這種跳躍位址 |
+| **狀態機與排程邏輯** | 用 counter + 條件判斷追蹤「收了幾筆？是否該觸發下一階段？」 | Block 3 的 PL Scheduling，由 PL 直接 orchestration 兩階段交錯執行，取代 PS 軟體輪詢 |
+| **位元級操作 (Bit-level)** | 資料格式切割、重組、標頭解析 | `mm2s` / `s2mm` 在 AXI-MM ↔ AXI-Stream 之間做封包轉換 |
+
+> **正確的分工敘述**：
+> AIE 負責**演算法級別的訊號大運算**（FFT 蝶形、複數乘法），PL 負責**控制流、位址跳躍計算、狀態機判斷的底層邏輯運算**。兩者都在算，只是抽象層次不同。
+
+---
+
 ## 2. 異質運算架構：PS、PL 與 AIE 的完美分工
 
 <img src="./dataflow.svg" alt="2D FFT dataflow static diagram" width="900" />
@@ -234,6 +259,8 @@
 
 ## 附錄 B：專案檔案與資料夾速查
 
+> 💡 **開發者導覽提示**：如果您想了解專案中所有**手寫核心原始碼 (Hand-written code)** 的實體路徑、實際功用與異質調度關係，請參閱專門建立的獨立地圖文件：[code_map.md](file:///mnt/workspace/Xilinx/Vitis/2024.2/vitis-rda-versal/doc/code_map.md)。
+
 ### B.1 關鍵檔案路徑
 | 角色 | 路徑 |
 |---|---|
@@ -359,3 +386,5 @@
 | **HSDP / JTAG / UART (USB Type-C)** | Debug 與主控 console 介面，使用 USB Type-C 實體接頭。 | 用於 JTAG download / debug、UART console、硬體 bring-up 與開發時觀察 PS/Linux 訊息。 |
 | **Boot Module Connector** | 可接 boot module 的板上連接器。 | 提供開機模式、設定或板級啟動相關擴充；通常用於開發板 boot / configuration 流程。 |
 | **Power Switch** | 開發板電源開關。 | 控制整張 VCK190 開發板上電 / 斷電。 |
+
+
